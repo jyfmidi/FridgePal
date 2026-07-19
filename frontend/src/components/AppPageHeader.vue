@@ -11,8 +11,8 @@ const { t } = useI18n()
       class="app-page-header__brand"
       src="/brand/fridge-pal-mark.svg"
       :alt="t('app.title')"
-      width="36"
-      height="36"
+      width="32"
+      height="40"
     >
     <h1 class="app-page-header__title">{{ title }}</h1>
     <div class="app-page-header__actions">
@@ -40,8 +40,8 @@ const { t } = useI18n()
 
 .app-page-header__brand {
   display: block;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 40px;
   object-fit: contain;
 }
 
@@ -66,8 +66,8 @@ const { t } = useI18n()
   }
 
   .app-page-header__brand {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 44px;
   }
 }
 </style>

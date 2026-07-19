@@ -9,13 +9,13 @@ Rename the product from **Fridgital** to **Fridge Pal** and introduce a standalo
 
 ## Brand Mark
 
-The mark is a compact, near-square refrigerator character built from simple geometric blocks:
+The mark is a compact, vertically proportioned refrigerator character built from simple geometric blocks:
 
 - two vertically stacked coral-orange door blocks;
 - a shorter upper door and taller lower door;
 - two small white rectangular eyes on the upper door;
 - a narrow door gap and minimal refrigerator detail;
-- one short dark-coral handle/notch, deliberately distinct from the white eyes;
+- one short dark-coral handle on each door, deliberately distinct from the white eyes;
 - restrained corner rounding that preserves a light pixel-character quality.
 
 The mark contains no wordmark or other text. It uses no gradient, shadow, outline, blue system color, facial mouth, appliance scenery, or decorative effects.

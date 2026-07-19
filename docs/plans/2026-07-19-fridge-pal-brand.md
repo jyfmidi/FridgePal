@@ -64,15 +64,16 @@ git commit -m "test: define Fridge Pal brand identity"
 
 **Step 1: Create the SVG asset**
 
-Create a `64 × 64` viewBox containing two stacked coral door blocks. Use a shorter upper door, taller lower door, two white rectangular eyes, a transparent door gap, and one short dark-coral handle on the lower door. Keep the SVG free of text, gradients, shadows, strokes, and blue.
+Create a `64 × 80` viewBox containing two stacked coral door blocks. Use a shorter upper door, taller lower door, two white rectangular eyes, a transparent door gap, and one short dark-coral handle on each door. Keep the SVG free of text, gradients, shadows, strokes, and blue.
 
 ```svg
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <path fill="#F47B65" d="M12 5h40a6 6 0 0 1 6 6v17H6V11a6 6 0 0 1 6-6Z"/>
-  <path fill="#EE6A56" d="M6 32h52v21a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6V32Z"/>
-  <rect width="6" height="10" x="19" y="14" fill="#FFF" rx="1"/>
-  <rect width="6" height="10" x="39" y="14" fill="#FFF" rx="1"/>
-  <rect width="4" height="12" x="48" y="38" fill="#B84739" rx="2"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80">
+  <path fill="#F47B65" d="M12 4h40a6 6 0 0 1 6 6v26H6V10a6 6 0 0 1 6-6Z"/>
+  <path fill="#EE6A56" d="M6 40h52v30a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6V40Z"/>
+  <rect width="6" height="10" x="18" y="13" fill="#FFF" rx="1"/>
+  <rect width="6" height="10" x="34" y="13" fill="#FFF" rx="1"/>
+  <rect width="4" height="9" x="48" y="24" fill="#B84739" rx="2"/>
+  <rect width="4" height="14" x="48" y="45" fill="#B84739" rx="2"/>
 </svg>
 ```
 
