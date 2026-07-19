@@ -2,7 +2,7 @@
 
 > **For Codex:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Restyle the Fridgital frontend ("warm refinement") and add a complete motion system, without touching any functional logic.
+**Goal:** Restyle the Fridge Pal frontend ("warm refinement") and add a complete motion system, without touching any functional logic.
 
 **Architecture:** All changes are CSS values + scoped styles + minimal template/class additions. The two-tier token system in `frontend/src/styles/tokens.css` is remapped; new semantic tokens are added for header/nav translucency, rail gradients, and stagger motion. Motion lands via `base.css` utilities + `<Transition>` in `App.vue`.
 

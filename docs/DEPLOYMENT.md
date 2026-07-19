@@ -1,8 +1,8 @@
-# Fridgital Docker Compose Deployment
+# Fridge Pal Docker Compose Deployment
 
-This is the canonical operations runbook for deploying Fridgital on one self-managed Linux server. Commands assume a clean Git checkout and Docker Compose v2.
+This is the canonical operations runbook for deploying Fridge Pal on one self-managed Linux server. Commands assume a clean Git checkout and Docker Compose v2.
 
-Fridgital has no application authentication. Do not expose it to the unrestricted public internet. Direct access through a server IP is supported only when the host or cloud firewall limits port `8080` to trusted source IP addresses.
+Fridge Pal has no application authentication. Do not expose it to the unrestricted public internet. Direct access through a server IP is supported only when the host or cloud firewall limits port `8080` to trusted source IP addresses.
 
 ## 1. Deployment Architecture
 
@@ -52,8 +52,8 @@ All four commands must succeed. Run Docker as a non-root operator who is authori
 The operator must supply the real repository URL. An agent must not guess it.
 
 ```bash
-git clone YOUR_REPOSITORY_URL Fridgital
-cd Fridgital
+git clone YOUR_REPOSITORY_URL fridge-pal
+cd fridge-pal
 ```
 
 Record the deployed revision:
@@ -227,7 +227,7 @@ ls -lh "$backup_path"
 
 Copy backups to a second machine or protected object store. A backup that only exists on the application server is not sufficient disaster recovery.
 
-Periodically test restoration on a disposable Fridgital deployment. A dump that has never been restored is not a verified backup.
+Periodically test restoration on a disposable Fridge Pal deployment. A dump that has never been restored is not a verified backup.
 
 ## 7. Database Restore
 
@@ -291,7 +291,7 @@ Normal shutdown retains data:
 docker compose down
 ```
 
-The following command permanently removes the database volume and all Fridgital data on this server:
+The following command permanently removes the database volume and all Fridge Pal data on this server:
 
 ```text
 docker compose down --volumes
@@ -351,7 +351,7 @@ The production frontend and API are same-origin. Do not configure a separate fro
 
 ## 11. Agent Execution Checklist
 
-An automation agent deploying Fridgital must:
+An automation agent deploying Fridge Pal must:
 
 1. confirm it is operating in the intended repository and server;
 2. inspect Git status and stop if unreviewed local changes exist;

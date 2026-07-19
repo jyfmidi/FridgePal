@@ -1,4 +1,4 @@
-# Fridgital UX and Visual Specification
+# Fridge Pal UX and Visual Specification
 
 **Status:** Canonical implementation reference  
 **Primary composition:** Mobile web around `390 × 844 CSS px`  
@@ -113,9 +113,9 @@ flowchart TD
 
 ### `UI-CMP-06` — Application Headers
 
-- Storage, Rescue, Recipes, and History share one compact header with identical Fridgital wordmark, centered page title, spacing, and sticky behavior.
+- Storage, Rescue, Recipes, and History share one compact header with the standalone Fridge Pal mark, centered page title, spacing, and sticky behavior.
 - Focused task routes share one task header with Back, centered task title, and an optional right-side action or state.
-- Task headers omit the Fridgital wordmark so brand identity does not compete with Back, title, or save state.
+- Task headers omit the Fridge Pal mark so brand identity does not compete with Back, title, or save state.
 
 ### `UI-CMP-07` — Functional Iconography
 
@@ -129,7 +129,7 @@ flowchart TD
 
 Required top-to-bottom order:
 
-1. compact Fridgital identity, Search, and Add Food;
+1. compact Fridge Pal identity, Search, and Add Food;
 2. complete `Use soon` section;
 3. complete-inventory title and count, then the `All / Fridge / Freezer / Pantry` scope control on its own row;
 4. complete scoped inventory grid;

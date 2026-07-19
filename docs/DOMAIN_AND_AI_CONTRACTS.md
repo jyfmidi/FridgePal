@@ -1,4 +1,4 @@
-# Fridgital Domain and AI Contracts
+# Fridge Pal Domain and AI Contracts
 
 **Status:** Canonical technical-behavior specification  
 **Scope:** Stack-neutral domain, persistence, provider, mutation, security, and error contracts  
@@ -6,11 +6,11 @@
 
 ## 1. System Boundary
 
-Fridgital may be implemented as one deployable application, but it must preserve these logical boundaries:
+Fridge Pal may be implemented as one deployable application, but it must preserve these logical boundaries:
 
 ```mermaid
 flowchart LR
-    UI["Responsive Web Client"] --> APP["Fridgital Application Service"]
+    UI["Responsive Web Client"] --> APP["Fridge Pal Application Service"]
     APP --> DOMAIN["Domain Rules and Operations"]
     DOMAIN --> DB[("Relational Persistence")]
     APP --> RET["Recipe Retrieval Adapter"]
@@ -19,7 +19,7 @@ flowchart LR
     STR --> MODEL["Configured AI/model provider"]
 ```
 
-- The browser communicates only with the Fridgital application service.
+- The browser communicates only with the Fridge Pal application service.
 - The application service owns validation, shelf-life rules, unit conversion, search orchestration, mapping, transaction boundaries, and persistence.
 - Provider credentials never reach the browser.
 - Retrieval and structuring are separate versioned interfaces even when one vendor implements both.
@@ -384,7 +384,7 @@ A partial RecipeDraft may open when it has a name plus at least one ingredient o
 | `ERR-07` | Database failure during commit | Keep review state and show Retry. | Complete rollback; no partial History. |
 | `ERR-08` | Network interruption after submit | Preserve values and retry/poll with original idempotency key. | No duplicate mutation. |
 | `ERR-09` | Invalid quantity/date/rule | Inline error near control. | Invalid data not persisted. |
-| `ERR-10` | Fridgital server unreachable | Explicit disconnected state; preserve only current UI draft in memory. | No claimed offline persistence or hidden queue. |
+| `ERR-10` | Fridge Pal server unreachable | Explicit disconnected state; preserve only current UI draft in memory. | No claimed offline persistence or hidden queue. |
 | `ERR-11` | Recipe save failure | Retain RecipeDraft and show Retry. | No false Saved state. |
 
 Every asynchronous surface defines loading, empty, partial, stale, disabled, error, and success behavior. Toasts are suitable for success/Undo, not blocking failures or field errors.

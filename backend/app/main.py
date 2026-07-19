@@ -1,4 +1,4 @@
-"""Fridgital FastAPI application entry point."""
+"""Fridge Pal FastAPI application entry point."""
 
 import logging
 import os
@@ -48,7 +48,7 @@ def create_app() -> FastAPI:
     def get_session():
         yield from session_dependency(session_factory)
 
-    app = FastAPI(title="Fridgital", version=APP_VERSION)
+    app = FastAPI(title="Fridge Pal", version=APP_VERSION)
     app.include_router(health_router, prefix="/api")
     app.include_router(build_inventory_router(get_session), prefix="/api")
     app.state.database_engine = engine

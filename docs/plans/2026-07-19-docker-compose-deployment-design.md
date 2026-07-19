@@ -9,7 +9,7 @@ Make a fresh Linux server deployment understandable and repeatable for both a hu
 
 ## Deployment Boundary
 
-Fridgital remains one private, single-user deployment composed of:
+Fridge Pal remains one private, single-user deployment composed of:
 
 - one `app` container that serves the built Vue client and FastAPI API;
 - one MySQL 8.4 container;

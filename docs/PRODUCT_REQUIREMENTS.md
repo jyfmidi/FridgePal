@@ -1,4 +1,4 @@
-# Fridgital Product Requirements
+# Fridge Pal Product Requirements
 
 **Status:** Canonical specification for implementation  
 **Product stage:** Hackathon MVP  
@@ -8,7 +8,7 @@
 
 ## 1. Product Definition
 
-Fridgital is a digital twin of food stored in a household fridge, freezer, and pantry. It reduces food waste by making inventory easy to capture, expiration risk easy to scan, and recipe rescue easy to complete without losing inventory accuracy.
+Fridge Pal is a digital twin of food stored in a household fridge, freezer, and pantry. It reduces food waste by making inventory easy to capture, expiration risk easy to scan, and recipe rescue easy to complete without losing inventory accuracy.
 
 **Primary promise:** Turn food that is about to expire into tonight's meal.
 

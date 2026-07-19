@@ -91,7 +91,7 @@ function buildLines() {
     const parsed = parseAmount(ingredient.amount)
     const unit = stored?.unit ?? parsed.unit ?? 'g'
     // Prefill only when the recipe unit matches the storage unit; otherwise the
-    // user types the storage-unit amount themselves; Fridgital never guesses a conversion.
+    // user types the storage-unit amount themselves; Fridge Pal never guesses a conversion.
     const prefill = stored && parsed.value && (!parsed.unit || parsed.unit === stored.unit) ? parsed.value : ''
     nextLines.push({
       key: ingredient.id,

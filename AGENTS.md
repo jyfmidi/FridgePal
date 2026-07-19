@@ -1,6 +1,6 @@
-# Agent Instructions for Fridgital
+# Agent Instructions for Fridge Pal
 
-This file governs implementation work in the Fridgital workspace.
+This file governs implementation work in the Fridge Pal workspace.
 
 ## Required Reading Order
 
@@ -24,7 +24,7 @@ Use this authority order when details conflict:
 
 ## Non-Negotiable Product Invariants
 
-- The product name is **Fridgital**.
+- The product name is **Fridge Pal**.
 - Mobile and desktop expose the same feature set. Mobile is the canonical interaction sequence; desktop only gains width and density.
 - Storage uses lot-level truth but overview tiles show one aggregated quantity, never `×2` lot badges.
 - Use Soon is a derived alert view; urgent foods also remain in the complete inventory.

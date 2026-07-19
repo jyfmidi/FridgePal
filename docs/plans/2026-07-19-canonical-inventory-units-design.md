@@ -12,7 +12,7 @@ Storage currently exposes a five-unit UI vocabulary, but the backend quantity ta
 - `g` and `kg` convert exactly through a factor of 1000. `ml` and `l` convert exactly through a factor of 1000. `piece` has no implicit mass or volume conversion.
 - Legacy count aliases `head`, `bulb`, `clove`, and `bunch` migrate to `piece` without changing the numeric quantity.
 - New API writes reject food-specific count aliases and unknown units.
-- A same-dimension base-unit edit converts every lot for the FoodDefinition transactionally before changing the shared base unit. Cross-dimension edits remain unavailable because Fridgital must not invent piece-weight or density conversions.
+- A same-dimension base-unit edit converts every lot for the FoodDefinition transactionally before changing the shared base unit. Cross-dimension edits remain unavailable because Fridge Pal must not invent piece-weight or density conversions.
 - The ambiguous quantity icon is removed. Quantity is communicated through the localized field label and a visually distinct numeric value capsule; time status retains its clock or tombstone icon.
 
 ## Data Flow

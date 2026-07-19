@@ -1,1 +1,1 @@
-"""Fridgital application package."""
+"""Fridge Pal application package."""

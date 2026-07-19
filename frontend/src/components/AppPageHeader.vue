@@ -7,7 +7,13 @@ const { t } = useI18n()
 
 <template>
   <header class="app-page-header">
-    <strong class="app-page-header__brand">{{ t('app.title') }}</strong>
+    <img
+      class="app-page-header__brand"
+      src="/brand/fridge-pal-mark.svg"
+      :alt="t('app.title')"
+      width="36"
+      height="36"
+    >
     <h1 class="app-page-header__title">{{ title }}</h1>
     <div class="app-page-header__actions">
       <slot name="actions" />
@@ -33,13 +39,10 @@ const { t } = useI18n()
 }
 
 .app-page-header__brand {
-  overflow: hidden;
-  color: var(--color-brand);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: -0.025em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: block;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
 }
 
 .app-page-header__title {
@@ -58,9 +61,13 @@ const { t } = useI18n()
 }
 
 @media (min-width: 720px) {
-  .app-page-header__brand,
   .app-page-header__title {
     font-size: var(--font-size-lg);
+  }
+
+  .app-page-header__brand {
+    width: 40px;
+    height: 40px;
   }
 }
 </style>

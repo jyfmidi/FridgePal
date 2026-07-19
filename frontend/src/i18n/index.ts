@@ -6,13 +6,13 @@ export const i18n = createI18n({
   fallbackLocale: 'en',
   messages: {
     en: {
-      app: { title: 'Fridgital' },
+      app: { title: 'Fridge Pal' },
       common: { comingNext: 'This part of the MVP is coming next.', back: 'Back', done: 'Done' },
       navigation: { label: 'Primary navigation', storage: 'Storage', rescue: 'Rescue', recipes: 'Recipes', history: 'History' },
       storage: {
         title: 'Storage', addFood: 'Add food', search: 'Search storage', searchPlaceholder: 'Search foods',
         useSoon: 'Use soon', needsAttention: '{count} foods need attention', inventory: 'Complete inventory',
-        locationFilter: 'Filter by storage location', items: '{count} items', noMatches: 'No foods match these filters.', clearFilters: 'Clear filters', localOnly: 'Changes are currently saved in this browser only. Start the Fridgital server to sync them.',
+        locationFilter: 'Filter by storage location', items: '{count} items', noMatches: 'No foods match these filters.', clearFilters: 'Clear filters', localOnly: 'Changes are currently saved in this browser only. Start the Fridge Pal server to sync them.',
         scopes: { all: 'All', fridge: 'Fridge', freezer: 'Freezer', pantry: 'Pantry' },
       },
       storageItem: {
@@ -100,13 +100,13 @@ export const i18n = createI18n({
       },
     },
     'zh-CN': {
-      app: { title: 'Fridgital' },
+      app: { title: 'Fridge Pal' },
       common: { comingNext: 'MVP 的这一部分将在下一步完成。', back: '返回', done: '完成' },
       navigation: { label: '主导航', storage: '储藏', rescue: '拯救食材', recipes: '菜谱', history: '记录' },
       storage: {
         title: '储藏', addFood: '添加食材', search: '搜索储藏', searchPlaceholder: '搜索食材',
         useSoon: '尽快使用', needsAttention: '{count} 种食材需要留意', inventory: '全部库存',
-        locationFilter: '按储藏位置筛选', items: '{count} 项', noMatches: '没有符合当前筛选条件的食材。', clearFilters: '清除筛选', localOnly: '当前更改仅保存在此浏览器中。启动 Fridgital 服务后即可同步。',
+        locationFilter: '按储藏位置筛选', items: '{count} 项', noMatches: '没有符合当前筛选条件的食材。', clearFilters: '清除筛选', localOnly: '当前更改仅保存在此浏览器中。启动 Fridge Pal 服务后即可同步。',
         scopes: { all: '全部', fridge: '冷藏', freezer: '冷冻', pantry: '常温' },
       },
       storageItem: {

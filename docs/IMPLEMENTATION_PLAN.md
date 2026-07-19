@@ -1,8 +1,8 @@
-# Fridgital Hackathon MVP Implementation Plan
+# Fridge Pal Hackathon MVP Implementation Plan
 
 > **For Codex:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task after Task 0 closes the stack decisions.
 
-**Goal:** Build the P0 Fridgital golden loop as a private, responsive, Docker Compose-deployed single-user web application.
+**Goal:** Build the P0 Fridge Pal golden loop as a private, responsive, Docker Compose-deployed single-user web application.
 
 **Architecture:** Use one deployable application service with a responsive web client, domain/application modules, relational persistence, and server-only provider adapters. Keep inventory rules and AI/provider boundaries independent from the chosen web framework.
 

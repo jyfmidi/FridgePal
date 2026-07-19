@@ -1,14 +1,14 @@
-# Fridgital
+# Fridge Pal
 
-Fridgital is a private, self-hosted digital twin for household food storage. It helps one home cook record food, notice expiration risk, turn urgent ingredients into meal ideas, edit recipes, and reconcile actual usage back into Storage.
+Fridge Pal is a private, self-hosted digital twin for household food storage. It helps one home cook record food, notice expiration risk, turn urgent ingredients into meal ideas, edit recipes, and reconcile actual usage back into Storage.
 
 **Primary promise:** Turn food that is about to expire into tonight's meal.
 
-> **Security boundary:** Fridgital has no authentication. Deploy it on a private network, through a VPN, or behind a firewall that permits only trusted source IPs. Unrestricted public exposure is unsupported.
+> **Security boundary:** Fridge Pal has no authentication. Deploy it on a private network, through a VPN, or behind a firewall that permits only trusted source IPs. Unrestricted public exposure is unsupported.
 
 ## Current Status
 
-Fridgital is an actively developed hackathon MVP.
+Fridge Pal is an actively developed hackathon MVP.
 
 - Storage, Use Soon, Add Food, item editing, canonical unit conversion, Rescue selection, recipe results, Recipe Editor, Saved Recipes UI, and cooking reconciliation interactions are implemented.
 - Inventory data is persisted through FastAPI, SQLAlchemy, Alembic, and MySQL in Docker deployments.
@@ -67,7 +67,7 @@ Inventory mutations remain server-owned, transactional, idempotent, non-negative
 ## Repository Structure
 
 ```text
-Fridgital/
+fridge-pal/
 ├── backend/
 │   ├── app/
 │   │   ├── api/                 # FastAPI routes and transport models

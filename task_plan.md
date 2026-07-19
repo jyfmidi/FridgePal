@@ -1,4 +1,4 @@
-# Fridgital delivery work
+# Fridge Pal delivery work
 
 ## Current task: Docker Compose deployment documentation
 

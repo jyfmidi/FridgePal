@@ -4,4 +4,4 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
-    """Declarative base shared by Fridgital persistence models."""
+    """Declarative base shared by Fridge Pal persistence models."""

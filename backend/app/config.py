@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Runtime configuration for the Fridgital application service."""
+    """Runtime configuration for the Fridge Pal application service."""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -2,7 +2,7 @@
 
 > **For Codex:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Make Fridgital deployable and operable on a fresh private Linux server through documented Docker Compose commands.
+**Goal:** Make Fridge Pal deployable and operable on a fresh private Linux server through documented Docker Compose commands.
 
 **Architecture:** Keep the existing two-service Compose topology: one multi-stage application image and one MySQL 8.4 service backed by a named volume. Add safe configurable host binding, production-oriented container defaults, and one canonical operations runbook without introducing a reverse proxy or authentication system.
 
