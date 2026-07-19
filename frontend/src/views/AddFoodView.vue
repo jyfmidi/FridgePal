@@ -14,10 +14,19 @@ const { checkIn } = useInventoryStore()
 
 const today = new Date().toISOString().slice(0, 10)
 const query = ref('')
-const selected = ref<FoodCatalogItem | null>(null)
+
+/** Draft for a food that is not in the built-in catalog (FR-LIB-003). */
+interface CustomFoodDraft {
+  custom: true
+  name: string
+  foodKey: string
+}
+
+const selected = ref<FoodCatalogItem | CustomFoodDraft | null>(null)
 const location = ref<StorageLocation>('fridge')
 const quantity = ref(1)
 const unit = ref<InventoryUnit>('piece')
+const customUnit = ref('g')
 const storedOn = ref(today)
 const expiresOn = ref('')
 const saving = ref(false)
@@ -25,10 +34,30 @@ const saving = ref(false)
 const locations: StorageLocation[] = ['fridge', 'freezer', 'pantry']
 const units: InventoryUnit[] = ['g', 'kg', 'ml', 'piece', 'head', 'bulb']
 
+const trimmedQuery = computed(() => query.value.trim())
+
 const suggestions = computed(() => {
-  const normalized = query.value.trim().toLocaleLowerCase(locale.value)
+  const normalized = trimmedQuery.value.toLocaleLowerCase(locale.value)
   return foodCatalog.filter((food) => !normalized || t(food.nameKey).toLocaleLowerCase(locale.value).includes(normalized)).slice(0, 8)
 })
+
+const showCreateCustom = computed(() => trimmedQuery.value.length > 0 && suggestions.value.length === 0)
+const isCustomSelected = computed(() => !!selected.value && 'custom' in selected.value)
+
+/** Lowercase, non-alphanumerics collapse to `-` (Unicode-aware so CJK names keep their characters). */
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'food'
+}
+
+const customFoodKey = computed(() => `custom:${slugify(trimmedQuery.value)}`)
+
+function createCustomFood() {
+  const name = trimmedQuery.value
+  if (!name) return
+  selected.value = { custom: true, name, foodKey: customFoodKey.value }
+  customUnit.value = 'g'
+  expiresOn.value = ''
+}
 
 function toDateInput(date: Date) {
   const offset = date.getTimezoneOffset()
@@ -50,14 +79,16 @@ function chooseFood(food: FoodCatalogItem) {
 }
 
 async function save() {
-  if (!selected.value || quantity.value <= 0) return
+  const selection = selected.value
+  if (!selection || quantity.value <= 0) return
   saving.value = true
+  const custom = 'custom' in selection
   const synced = await checkIn({
-    foodKey: selected.value.foodKey,
-    nameKey: selected.value.nameKey,
-    names: selected.value.names,
+    foodKey: selection.foodKey,
+    nameKey: custom ? undefined : selection.nameKey,
+    names: custom ? { en: selection.name, 'zh-CN': selection.name } : selection.names,
     quantity: quantity.value,
-    unit: unit.value,
+    unit: custom ? customUnit.value.trim() || 'g' : unit.value,
     location: location.value,
     storedOn: storedOn.value,
     expiresOn: expiresOn.value || undefined,
@@ -78,7 +109,7 @@ async function save() {
       <section>
         <label class="field-label" for="food-search">{{ t('addFood.chooseFood') }}</label>
         <input id="food-search" v-model="query" class="text-input" type="search" :placeholder="t('addFood.searchPlaceholder')">
-        <div class="suggestion-grid">
+        <div v-if="suggestions.length" class="suggestion-grid">
           <button
             v-for="food in suggestions"
             :key="food.foodKey"
@@ -93,6 +124,20 @@ async function save() {
             <span>{{ t(food.nameKey) }}</span>
           </button>
         </div>
+        <button
+          v-if="showCreateCustom"
+          type="button"
+          class="create-custom"
+          :class="{ 'create-custom--selected': isCustomSelected }"
+          :aria-pressed="isCustomSelected"
+          @click="createCustomFood"
+        >
+          <FoodToken :food-key="customFoodKey" :name="trimmedQuery" :size="50" />
+          <span class="create-custom__text">
+            <strong>{{ t('addFood.createNamed', { name: trimmedQuery }) }}</strong>
+            <small>{{ t('addFood.createHint') }}</small>
+          </span>
+        </button>
       </section>
 
       <template v-if="selected">
@@ -110,7 +155,15 @@ async function save() {
             <span class="field-label">{{ t('addFood.quantity') }}</span>
             <input v-model.number="quantity" class="text-input" type="number" min="0.01" step="0.01">
           </label>
-          <label>
+          <label v-if="isCustomSelected">
+            <span class="field-label">{{ t('addFood.baseUnit') }}</span>
+            <input v-model="customUnit" class="text-input" type="text" list="base-unit-options">
+            <datalist id="base-unit-options">
+              <option v-for="item in units" :key="item" :value="item" />
+            </datalist>
+            <small>{{ t('addFood.baseUnitHint') }}</small>
+          </label>
+          <label v-else>
             <span class="field-label">{{ t('addFood.unit') }}</span>
             <select v-model="unit" class="text-input">
               <option v-for="item in units" :key="item" :value="item">{{ t(`units.${item}`, { count: quantity }) }}</option>
@@ -223,6 +276,34 @@ async function save() {
 
 .food-suggestion--selected {
   box-shadow: inset 0 0 0 2px var(--color-primary), var(--shadow-sm);
+}
+
+.create-custom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border), var(--shadow-sm);
+  text-align: left;
+}
+
+.create-custom--selected {
+  box-shadow: inset 0 0 0 2px var(--color-primary), var(--shadow-sm);
+}
+
+.create-custom__text {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+.create-custom__text small {
+  color: var(--color-muted);
+  font-size: var(--font-size-xs);
 }
 
 .form-section {

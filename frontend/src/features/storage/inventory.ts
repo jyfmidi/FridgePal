@@ -6,8 +6,11 @@ export interface InventoryFood {
   id: string
   foodKey: string
   nameKey: string
+  /** Raw localized names, kept so custom foods survive a local-only reload. */
+  names?: { en: string; 'zh-CN': string }
   quantity: number
-  unit: InventoryUnit
+  /** Free-form unit string; catalog foods use the InventoryUnit vocabulary. */
+  unit: string
   location: StorageLocation
   urgency: Urgency
   urgencyKey?: string
@@ -69,6 +72,6 @@ export const foodCatalog: FoodCatalogItem[] = demoInventory.map((food) => ({
   names: catalogNames[food.foodKey],
   defaultLocation: food.location,
   defaultQuantity: food.quantity,
-  defaultUnit: food.unit,
+  defaultUnit: food.unit as InventoryUnit,
   shelfLifeDays: food.location === 'fridge' ? 5 : undefined,
 }))

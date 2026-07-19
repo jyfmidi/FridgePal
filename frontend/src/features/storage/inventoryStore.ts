@@ -1,13 +1,33 @@
 import { computed, ref } from 'vue'
-import { fetchStorage, persistCheckIn, type StorageApiItem } from '../../api/inventory'
-import { demoInventory, foodCatalog, type InventoryFood, type InventoryUnit, type StorageLocation, type Urgency } from './inventory'
+import { fetchStorage, patchLot, persistCheckIn, reduceInventory, discardLot, type ApiLocation, type PatchLotInput, type StorageApiItem } from '../../api/inventory'
+import { i18n } from '../../i18n'
+import { demoInventory, foodCatalog, type InventoryFood, type StorageLocation, type Urgency } from './inventory'
 
 const STORAGE_KEY = 'fridgital.inventory.v1'
+
+/**
+ * Custom foods have no catalog entry, so their display names are registered
+ * into the i18n catalogs at runtime under `foods.<foodKey>`; every view keeps
+ * resolving names through the existing `t(food.nameKey)` path.
+ */
+function registerCustomFoodNames(foodKey: string, names: { en: string; 'zh-CN'?: string }): string {
+  i18n.global.mergeLocaleMessage('en', { foods: { [foodKey]: names.en } })
+  i18n.global.mergeLocaleMessage('zh-CN', { foods: { [foodKey]: names['zh-CN'] ?? names.en } })
+  return `foods.${foodKey}`
+}
 
 function loadInventory(): InventoryFood[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) return JSON.parse(saved) as InventoryFood[]
+    if (saved) {
+      const foods = JSON.parse(saved) as InventoryFood[]
+      for (const food of foods) {
+        if (food.names && !foodCatalog.some((catalogItem) => catalogItem.nameKey === food.nameKey)) {
+          registerCustomFoodNames(food.foodKey, food.names)
+        }
+      }
+      return foods
+    }
   } catch {
     // A blocked/corrupt local store falls back to the deterministic demo inventory.
   }
@@ -44,10 +64,11 @@ const urgencyRank: Record<Urgency, number> = {
 
 export interface CheckInInput {
   foodKey: string
-  nameKey: string
+  /** Catalog i18n key; omitted for custom foods, whose names are registered at runtime. */
+  nameKey?: string
   names: { en: string; 'zh-CN': string }
   quantity: number
-  unit: InventoryUnit
+  unit: string
   location: StorageLocation
   storedOn: string
   expiresOn?: string
@@ -70,6 +91,7 @@ function checkInLocally(input: CheckInInput) {
     inventory.value.push({
       id: `${input.foodKey}-${input.location}-${crypto.randomUUID()}`,
       ...input,
+      nameKey: input.nameKey ?? registerCustomFoodNames(input.foodKey, input.names),
       urgency: urgencyFromDate(input.expiresOn),
     })
   }
@@ -84,15 +106,16 @@ const urgencyMap: Record<StorageApiItem['urgency'], { urgency: Urgency; urgencyK
   LATER: { urgency: 'neutral' },
 }
 
-function mapApiItem(item: StorageApiItem): InventoryFood | null {
+function mapApiItem(item: StorageApiItem): InventoryFood {
   const catalogItem = foodCatalog.find((food) => food.foodKey === item.foodKey)
-  if (!catalogItem) return null
+  const names = { en: item.names.en, 'zh-CN': item.names['zh-CN'] ?? item.names.en }
   return {
     id: `${item.foodKey}-${item.location}`,
-    foodKey: item.visualKey,
-    nameKey: catalogItem.nameKey,
+    foodKey: item.foodKey,
+    nameKey: catalogItem ? catalogItem.nameKey : registerCustomFoodNames(item.foodKey, names),
+    names,
     quantity: Number(item.quantity),
-    unit: item.unit as InventoryUnit,
+    unit: item.unit,
     location: item.location.toLocaleLowerCase() as StorageLocation,
     ...urgencyMap[item.urgency],
   }
@@ -104,7 +127,6 @@ async function hydrateFromServer(): Promise<boolean> {
     const catalogOrder = new Map(foodCatalog.map((food, index) => [food.foodKey, index]))
     inventory.value = response.inventory
       .map(mapApiItem)
-      .filter((food): food is InventoryFood => food !== null)
       .sort((left, right) => (catalogOrder.get(left.foodKey) ?? 999) - (catalogOrder.get(right.foodKey) ?? 999))
     persist()
     syncState.value = 'synced'
@@ -126,6 +148,45 @@ async function checkIn(input: CheckInInput): Promise<boolean> {
   }
 }
 
+export interface UpdateLotInput {
+  quantity?: number
+  location?: StorageLocation
+  /** ISO date, or null to clear the use-by date. */
+  expiresOn?: string | null
+}
+
+/**
+ * Server-backed lot mutations (UI-03). Unlike checkIn these have no local
+ * fallback: failures throw so the calling view can surface an error message.
+ * Every successful mutation rehydrates the aggregate inventory from the server.
+ */
+async function updateLot(lotId: string, input: UpdateLotInput): Promise<boolean> {
+  const patch: PatchLotInput = {}
+  if (input.quantity !== undefined) patch.quantity = String(input.quantity)
+  if (input.location !== undefined) patch.location = input.location.toUpperCase() as ApiLocation
+  if (input.expiresOn !== undefined) patch.expiresOn = input.expiresOn
+  await patchLot(lotId, patch, crypto.randomUUID())
+  return hydrateFromServer()
+}
+
+async function reduceStock(input: { foodKey: string; location: StorageLocation; amount: number; unit: string }): Promise<boolean> {
+  await reduceInventory(
+    {
+      foodKey: input.foodKey,
+      location: input.location.toUpperCase() as ApiLocation,
+      amount: String(input.amount),
+      unit: input.unit,
+    },
+    crypto.randomUUID(),
+  )
+  return hydrateFromServer()
+}
+
+async function discardLotById(lotId: string): Promise<boolean> {
+  await discardLot(lotId, crypto.randomUUID())
+  return hydrateFromServer()
+}
+
 export function useInventoryStore() {
   return {
     inventory,
@@ -133,5 +194,8 @@ export function useInventoryStore() {
     syncState,
     hydrateFromServer,
     checkIn,
+    updateLot,
+    reduceStock,
+    discardLotById,
   }
 }
