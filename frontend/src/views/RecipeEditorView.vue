@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
 import FoodToken from '../components/food-token/FoodToken.vue'
+import CookingSheet from '../components/recipes/CookingSheet.vue'
 import StorageIngredientPicker from '../components/recipes/StorageIngredientPicker.vue'
 import { buildPlanIngredients, recipeSources } from '../features/recipes/fixtures'
 import { useRecipeStore, type RecipeDraftData, type RecipeIngredientDraft } from '../features/recipes/recipeStore'
@@ -73,10 +74,28 @@ const addStorageButton = ref<HTMLButtonElement | null>(null)
 const draftSaved = ref(false)
 const recipeSaved = ref(Boolean(openedSavedRecipe.value))
 const savedRecipeId = ref(openedSavedRecipe.value?.id)
+const cookOpen = ref(false)
+const notice = ref('')
+let noticeTimer: ReturnType<typeof setTimeout> | undefined
+
+function showNotice(message: string) {
+  notice.value = message
+  clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => (notice.value = ''), 2500)
+}
 
 const effectiveYield = computed(() => Math.round(baseYield.value * multiplier.value * 10) / 10)
 const ingredientIds = computed(() => new Set(ingredients.value.map((ingredient) => ingredient.id)))
 const inventoryById = computed(() => new Map(inventory.value.map((food) => [food.id, food])))
+/** Recipe ingredients with effective (portion-scaled) amounts, resolved against Storage. */
+const cookIngredients = computed(() =>
+  ingredients.value.map((ingredient) => ({
+    id: ingredient.id,
+    nameKey: ingredient.nameKey,
+    foodKey: ingredient.foodKey ?? inventoryById.value.get(ingredient.id)?.foodKey,
+    amount: scaledAmount(ingredient.baseAmount),
+  })),
+)
 
 onMounted(() => {
   void hydrateFromServer()
@@ -161,6 +180,19 @@ function saveToRecipes() {
   localStorage.setItem(draftKey.value, JSON.stringify(currentDraft()))
   void router.replace({ query: { ...route.query, savedId: stored.id } })
 }
+
+function startCooking() {
+  // FR-RCP-001: an unsaved draft is auto-saved through the normal save path
+  // before reconciliation opens, with no extra prompt.
+  if (!recipeSaved.value) saveToRecipes()
+  cookOpen.value = true
+}
+
+function onCooked() {
+  cookOpen.value = false
+  void hydrateFromServer()
+  showNotice(t('cooking.updated'))
+}
 </script>
 
 <template>
@@ -170,6 +202,11 @@ function saveToRecipes() {
       <strong>{{ t('recipeEditor.title') }}</strong>
       <span>{{ t(recipeSaved ? 'recipeEditor.saved' : draftSaved ? 'recipeEditor.draftSaved' : 'recipeEditor.draft') }}</span>
     </header>
+
+    <div v-if="notice" class="notice" role="status">
+      <span>{{ notice }}</span>
+      <button type="button" :aria-label="t('storageItem.dismiss')" @click="notice = ''">×</button>
+    </div>
 
     <main class="editor-content">
       <section class="provenance">
@@ -240,8 +277,11 @@ function saveToRecipes() {
         <p>{{ recipeSaved ? t('recipeEditor.savedToRecipes') : draftSaved ? t('recipeEditor.savedNotice') : t('recipeEditor.saveHint') }}</p>
         <div class="editor-footer__actions">
           <AppButton variant="secondary" :disabled="name.trim().length === 0" @click="saveDraft">{{ t('recipeEditor.saveDraft') }}</AppButton>
-          <AppButton :disabled="name.trim().length === 0" @click="saveToRecipes">
+          <AppButton variant="secondary" :disabled="name.trim().length === 0" @click="saveToRecipes">
             {{ t(savedRecipeId ? 'recipeEditor.saveChanges' : 'recipeEditor.saveRecipe') }}
+          </AppButton>
+          <AppButton class="editor-footer__cook" :disabled="name.trim().length === 0" @click="startCooking">
+            {{ t('recipeEditor.cookThis') }}
           </AppButton>
         </div>
       </footer>
@@ -253,6 +293,15 @@ function saveToRecipes() {
       :ingredient-ids="ingredientIds"
       @close="closePicker"
       @confirm="addIngredients"
+    />
+
+    <CookingSheet
+      :open="cookOpen"
+      :recipe-name="name"
+      :ingredients="cookIngredients"
+      :foods="inventory"
+      @close="cookOpen = false"
+      @cooked="onCooked"
     />
   </div>
 </template>
@@ -489,6 +538,29 @@ textarea {
   gap: var(--space-2);
 }
 
+.notice {
+  position: sticky;
+  z-index: var(--z-sticky);
+  top: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.notice button {
+  min-width: var(--tap-target-min);
+  min-height: var(--tap-target-min);
+  font-size: 1.1rem;
+}
+
 @media (max-width: 520px) {
   .provenance,
   .editor-footer {
@@ -499,6 +571,10 @@ textarea {
   .editor-footer__actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .editor-footer__cook {
+    grid-column: 1 / -1;
   }
 
   .portion-controls {
