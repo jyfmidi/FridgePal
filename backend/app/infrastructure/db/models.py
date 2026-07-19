@@ -1,0 +1,69 @@
+"""Minimal relational persistence for the Storage vertical slice."""
+
+from datetime import UTC, date, datetime
+from decimal import Decimal
+from typing import Any
+
+from sqlalchemy import JSON, CheckConstraint, Date, DateTime, ForeignKey, Numeric, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.infrastructure.db.base import Base
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+class FoodDefinitionRow(Base):
+    __tablename__ = "food_definitions"
+
+    id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    names: Mapped[dict[str, str]] = mapped_column(JSON)
+    visual_key: Mapped[str] = mapped_column(String(100))
+    base_unit: Mapped[str] = mapped_column(String(20))
+    recommended_storage: Mapped[str] = mapped_column(String(20))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class InventoryLotRow(Base):
+    __tablename__ = "inventory_lots"
+    __table_args__ = (
+        CheckConstraint("quantity >= 0", name="ck_inventory_lot_quantity_non_negative"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    food_definition_id: Mapped[str] = mapped_column(ForeignKey("food_definitions.id"), index=True)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(18, 6))
+    storage_location: Mapped[str] = mapped_column(String(20), index=True)
+    stored_on: Mapped[date] = mapped_column(Date)
+    expires_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expiry_source: Mapped[str] = mapped_column(String(30))
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE", index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class InventoryTransactionRow(Base):
+    __tablename__ = "inventory_transactions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    lot_id: Mapped[str] = mapped_column(ForeignKey("inventory_lots.id"), index=True)
+    cooking_session_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    reason: Mapped[str] = mapped_column(String(40), index=True)
+    quantity_delta: Mapped[Decimal] = mapped_column(Numeric(18, 6))
+    reversal_of: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    # Base key (<=120) plus a per-lot ":<lotId>" suffix.
+    idempotency_key: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ActivityEventRow(Base):
+    __tablename__ = "activity_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(40), index=True)
+    food_definition_id: Mapped[str] = mapped_column(ForeignKey("food_definitions.id"), index=True)
+    quantity_delta: Mapped[Decimal] = mapped_column(Numeric(18, 6))
+    display_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON)
+    idempotency_key: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

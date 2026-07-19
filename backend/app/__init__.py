@@ -1,0 +1,1 @@
+"""Fridgital application package."""
