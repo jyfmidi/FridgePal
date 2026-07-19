@@ -6,8 +6,7 @@ export interface RecipeSourceFixture {
   publisher: string
   domain: string
   url: string
-  minutes: number
-  serves: number
+  serves?: number
   usedFoodKeys: string[]
 }
 
@@ -24,7 +23,6 @@ export const recipeSources: RecipeSourceFixture[] = [
     publisher: 'Good Food',
     domain: 'bbcgoodfood.com',
     url: 'https://www.bbcgoodfood.com/recipes/cheese-spinach-mushroom-stuffed-chicken',
-    minutes: 45,
     serves: 4,
     usedFoodKeys: ['chicken-breast', 'spinach', 'mushrooms', 'garlic'],
   },
@@ -34,7 +32,6 @@ export const recipeSources: RecipeSourceFixture[] = [
     publisher: 'Good Food',
     domain: 'bbcgoodfood.com',
     url: 'https://www.bbcgoodfood.com/recipes/creamy-spinach-mushroom-penne',
-    minutes: 20,
     serves: 2,
     usedFoodKeys: ['spinach', 'mushrooms', 'pasta', 'garlic'],
   },
@@ -44,8 +41,6 @@ export const recipeSources: RecipeSourceFixture[] = [
     publisher: 'Good Food',
     domain: 'bbcgoodfood.com',
     url: 'https://www.bbcgoodfood.com/recipes/chicken-mushrooms',
-    minutes: 40,
-    serves: 4,
     usedFoodKeys: ['chicken-breast', 'mushrooms', 'frozen-peas'],
   },
 ]
@@ -63,7 +58,7 @@ const amountByFoodKey: Record<string, string> = {
   carrots: '160 g',
   tomatoes: '200 g',
   onion: '1',
-  garlic: '2 cloves',
+  garlic: '10 g',
   rice: '160 g',
   pasta: '180 g',
   'frozen-peas': '140 g',

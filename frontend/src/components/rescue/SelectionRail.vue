@@ -16,18 +16,30 @@ const slots = computed(() => Array.from({ length: 7 }, (_, index) => props.foods
     <div v-for="(food, index) in slots" :key="food?.id ?? `empty-${index}`" class="selection-slot">
       <span class="selection-slot__index" aria-hidden="true">{{ index + 1 }}</span>
       <button
-        v-if="food"
+        v-if="food && editable"
         type="button"
         class="selection-slot__food"
-        :aria-label="t(editable ? 'rescue.removeFood' : 'rescue.selectedPosition', { name: t(food.nameKey), position: index + 1 })"
-        @click="editable && emit('remove', food.id)"
+        :aria-label="t('rescue.removeFood', { name: t(food.nameKey), position: index + 1 })"
+        @click="emit('remove', food.id)"
       >
         <FoodToken :food-key="food.foodKey" :name="t(food.nameKey)" :size="42" />
         <span>{{ t(food.nameKey) }}</span>
       </button>
-      <button v-else type="button" class="selection-slot__empty" :aria-label="t('rescue.addAtPosition', { position: index + 1 })" @click="emit('add')">
+      <div
+        v-else-if="food"
+        class="selection-slot__food selection-slot__food--static"
+        role="img"
+        :aria-label="t('rescue.selectedPosition', { name: t(food.nameKey), position: index + 1 })"
+      >
+        <FoodToken :food-key="food.foodKey" :name="t(food.nameKey)" :size="42" />
+        <span>{{ t(food.nameKey) }}</span>
+      </div>
+      <button v-else-if="editable" type="button" class="selection-slot__empty" :aria-label="t('rescue.addAtPosition', { position: index + 1 })" @click="emit('add')">
         <span aria-hidden="true">＋</span>
       </button>
+      <div v-else class="selection-slot__empty selection-slot__empty--static" role="img" :aria-label="t('recipeResults.emptySlot', { position: index + 1 })">
+        <span aria-hidden="true">—</span>
+      </div>
     </div>
   </div>
 </template>
@@ -39,9 +51,8 @@ const slots = computed(() => Array.from({ length: 7 }, (_, index) => props.foods
   gap: 4px;
   padding: var(--space-3) var(--space-2) var(--space-2);
   border-radius: var(--radius-card);
-  background: var(--color-rail);
-  background-image: var(--color-rail-gradient);
-  box-shadow: var(--shadow-inset-rail);
+  background: var(--color-selection-tray);
+  box-shadow: inset 0 0 0 1px var(--color-selection-edge);
 }
 
 .selection-slot {
@@ -59,10 +70,10 @@ const slots = computed(() => Array.from({ length: 7 }, (_, index) => props.foods
   height: 18px;
   place-items: center;
   transform: translateX(-50%);
-  border: 1px solid var(--color-rail-edge);
+  border: 1px solid var(--color-selection-edge);
   border-radius: var(--radius-full);
-  color: var(--color-on-rail-muted);
-  background: var(--color-rail);
+  color: var(--color-selection-muted);
+  background: var(--color-surface);
   font-size: 0.625rem;
 }
 
@@ -77,17 +88,22 @@ const slots = computed(() => Array.from({ length: 7 }, (_, index) => props.foods
   gap: 2px;
   padding: var(--space-1);
   border-radius: var(--radius-sm);
-  color: var(--color-on-rail);
-  background: var(--color-rail-slot);
-  box-shadow: inset 0 0 0 1px var(--color-rail-edge);
+  color: var(--color-ink);
+  background: var(--color-selection-slot);
+  box-shadow: inset 0 0 0 1px var(--color-selection-edge);
   transition:
     box-shadow var(--duration-base) var(--ease-standard),
     transform var(--duration-base) var(--ease-pop);
 }
 
 .selection-slot__food:hover {
-  box-shadow: var(--shadow-token-active);
+  box-shadow: inset 0 0 0 2px var(--color-primary), var(--shadow-sm);
   transform: translateY(-1px);
+}
+
+.selection-slot__food--static:hover {
+  box-shadow: inset 0 0 0 1px var(--color-selection-edge);
+  transform: none;
 }
 
 .selection-slot__food span {
@@ -101,11 +117,17 @@ const slots = computed(() => Array.from({ length: 7 }, (_, index) => props.foods
 }
 
 .selection-slot__empty {
-  border: 1px dashed var(--color-on-rail-muted);
-  color: var(--color-on-rail-muted);
-  background: transparent;
+  border: 1px dashed var(--color-selection-muted);
+  color: var(--color-selection-muted);
+  background: rgb(255 255 255 / 0.42);
   box-shadow: none;
   font-size: 1.8rem;
+}
+
+.selection-slot__empty--static {
+  border-style: solid;
+  cursor: default;
+  font-size: var(--font-size-base);
 }
 
 @media (max-width: 390px) {

@@ -22,7 +22,7 @@ import IconYogurt from './IconYogurt.vue'
  * One coherent family: 48x48 viewBox, semi-flat full color, bold silhouette,
  * 2-3 fills per asset, shared top-left light with a bottom-right shade.
  * Fill-based (never outline-only) so tokens stay legible on light tiles
- * and on the dark navy rail. Registry is keyed and statically imported,
+ * and on the neutral selection tray. Registry is keyed and statically imported,
  * so bundlers can tree-shake unused icons.
  */
 export const foodIcons: Record<string, Component> = {

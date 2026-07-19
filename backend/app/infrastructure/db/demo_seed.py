@@ -2,11 +2,13 @@
 
 from datetime import date, timedelta
 from decimal import Decimal
+from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.application.inventory.service import decimal_string
+from app.domain.inventory_unit import LEGACY_COUNT_UNIT_ALIASES
 from app.infrastructure.db.models import ActivityEventRow, FoodDefinitionRow, InventoryLotRow
 
 DEMO_FOODS = (
@@ -14,7 +16,7 @@ DEMO_FOODS = (
     ("yogurt", "Yogurt", "酸奶", "300", "g", "FRIDGE", 0),
     ("chicken-breast", "Chicken breast", "鸡胸肉", "600", "g", "FRIDGE", 1),
     ("mushrooms", "Mushrooms", "蘑菇", "300", "g", "FRIDGE", 2),
-    ("broccoli", "Broccoli", "西兰花", "1", "head", "FRIDGE", 2),
+    ("broccoli", "Broccoli", "西兰花", "300", "g", "FRIDGE", 2),
     ("tofu", "Tofu", "豆腐", "400", "g", "FRIDGE", 3),
     ("lemon", "Lemon", "柠檬", "3", "piece", "FRIDGE", 3),
     ("eggs", "Eggs", "鸡蛋", "8", "piece", "FRIDGE", None),
@@ -22,11 +24,42 @@ DEMO_FOODS = (
     ("carrots", "Carrots", "胡萝卜", "5", "piece", "FRIDGE", None),
     ("tomatoes", "Tomatoes", "番茄", "4", "piece", "FRIDGE", None),
     ("onion", "Onion", "洋葱", "6", "piece", "PANTRY", None),
-    ("garlic", "Garlic", "大蒜", "2", "bulb", "PANTRY", None),
+    ("garlic", "Garlic", "大蒜", "80", "g", "PANTRY", None),
     ("rice", "Rice", "大米", "1.2", "kg", "PANTRY", None),
     ("pasta", "Pasta", "意面", "500", "g", "PANTRY", None),
     ("frozen-peas", "Frozen peas", "冷冻豌豆", "450", "g", "FREEZER", None),
 )
+
+
+def normalize_legacy_inventory_units(factory: sessionmaker[Session]) -> None:
+    """Map legacy food-specific count aliases to the canonical `piece` unit once."""
+    with factory() as session:
+        foods = session.scalars(
+            select(FoodDefinitionRow).where(
+                FoodDefinitionRow.base_unit.in_(LEGACY_COUNT_UNIT_ALIASES)
+            )
+        ).all()
+        for food in foods:
+            previous_unit = food.base_unit
+            food.base_unit = "piece"
+            session.add(
+                ActivityEventRow(
+                    id=str(uuid4()),
+                    event_type="EDIT",
+                    food_definition_id=food.id,
+                    quantity_delta=Decimal(0),
+                    display_snapshot={
+                        "foodKey": food.id,
+                        "changes": {
+                            "unit": {"from": previous_unit, "to": "piece"},
+                        },
+                        "quantityDelta": "0",
+                        "migration": "canonical-inventory-units-v1",
+                    },
+                    idempotency_key=f"canonical-unit-v1:{food.id}",
+                )
+            )
+        session.commit()
 
 
 def seed_demo_inventory(factory: sessionmaker[Session], today: date | None = None) -> None:

@@ -3,7 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
-import AppChip from '../components/AppChip.vue'
+import AppIcon from '../components/AppIcon.vue'
+import AppPageHeader from '../components/AppPageHeader.vue'
+import LocationFilterBar from '../components/LocationFilterBar.vue'
 import StorageTile from '../components/storage-tile/StorageTile.vue'
 import type { InventoryFood, StorageLocation } from '../features/storage/inventory'
 import { useInventoryStore } from '../features/storage/inventoryStore'
@@ -22,8 +24,6 @@ onMounted(() => {
   void hydrateFromServer()
 })
 
-const scopes: Scope[] = ['all', 'fridge', 'freezer', 'pantry']
-
 const visibleFoods = computed(() => {
   const query = searchQuery.value.trim().toLocaleLowerCase(locale.value)
   return inventory.value.filter((food) => {
@@ -35,8 +35,10 @@ const visibleFoods = computed(() => {
 
 function quantityLabel(food: InventoryFood): string {
   const value = new Intl.NumberFormat(locale.value, { maximumFractionDigits: 2 }).format(food.quantity)
-  if (food.unit === 'piece') return value
-  return `${value} ${t(`units.${food.unit}`, { count: food.quantity })}`
+  const localized = ['g', 'kg', 'ml', 'l', 'piece'].includes(food.unit)
+    ? t(`units.${food.unit}`, food.quantity)
+    : food.unit
+  return `${value} ${localized}`
 }
 
 function urgencyLabel(food: InventoryFood): string | undefined {
@@ -58,15 +60,20 @@ function openItem(food: InventoryFood) {
 
 <template>
   <div class="storage-view">
-    <header class="storage-header">
-      <strong class="storage-header__brand">{{ t('app.title') }}</strong>
-      <span class="storage-header__page">{{ t('storage.title') }}</span>
-      <div class="storage-header__actions">
-        <button class="icon-action" type="button" :aria-label="t('storage.search')" @click="searchOpen = !searchOpen">⌕</button>
-        <button class="locale-action" type="button" @click="toggleLocale">{{ locale === 'en' ? '中文' : 'EN' }}</button>
-        <AppButton class="add-action" @click="$router.push('/add-food')">{{ t('storage.addFood') }}</AppButton>
-      </div>
-    </header>
+    <AppPageHeader :title="t('storage.title')">
+      <template #actions>
+        <div class="storage-actions">
+          <button class="icon-action" type="button" :aria-label="t('storage.search')" @click="searchOpen = !searchOpen">
+            <AppIcon name="search" :size="20" />
+          </button>
+          <button class="locale-action" type="button" @click="toggleLocale">{{ locale === 'en' ? '中文' : 'EN' }}</button>
+          <AppButton class="add-action" @click="$router.push('/add-food')">
+            <AppIcon name="add" :size="18" />
+            {{ t('storage.addFood') }}
+          </AppButton>
+        </div>
+      </template>
+    </AppPageHeader>
 
     <div v-if="searchOpen" class="storage-search">
       <label class="sr-only" for="storage-search">{{ t('storage.search') }}</label>
@@ -100,13 +107,11 @@ function openItem(food: InventoryFood) {
 
     <section class="storage-section storage-section--inventory" aria-labelledby="inventory-heading">
       <div class="inventory-toolbar">
-        <h2 id="inventory-heading" class="sr-only">{{ t('storage.inventory') }}</h2>
-        <div class="scope-control" role="group" :aria-label="t('storage.locationFilter')">
-          <AppChip v-for="item in scopes" :key="item" :selected="scope === item" @toggle="scope = item">
-            {{ t(`storage.scopes.${item}`) }}
-          </AppChip>
+        <div class="inventory-toolbar__heading">
+          <h2 id="inventory-heading">{{ t('storage.inventory') }}</h2>
+          <span class="inventory-count">{{ t('storage.items', { count: visibleFoods.length }) }}</span>
         </div>
-        <span class="inventory-count">{{ t('storage.items', { count: visibleFoods.length }) }}</span>
+        <LocationFilterBar v-model="scope" include-all :label="t('storage.locationFilter')" />
       </div>
 
       <div v-if="visibleFoods.length" class="inventory-grid stagger-in">
@@ -136,33 +141,7 @@ function openItem(food: InventoryFood) {
   margin: 0 auto;
 }
 
-.storage-header {
-  position: sticky;
-  z-index: var(--z-sticky);
-  top: 0;
-  display: grid;
-  min-height: 64px;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--safe-area-top) var(--space-1) 0;
-  background: var(--color-header-bg);
-  border-bottom: 1px solid var(--color-border);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-}
-
-.storage-header__brand,
-.storage-header__page {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-}
-
-.storage-header__page {
-  justify-self: center;
-}
-
-.storage-header__actions {
+.storage-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -178,7 +157,8 @@ function openItem(food: InventoryFood) {
 }
 
 .icon-action {
-  font-size: 1.6rem;
+  display: grid;
+  place-items: center;
 }
 
 .locale-action {
@@ -201,8 +181,9 @@ function openItem(food: InventoryFood) {
   padding: var(--space-2) var(--space-3);
   margin-top: var(--space-3);
   border-radius: var(--radius-sm);
-  color: var(--color-urgency-soon-ink);
-  background: var(--color-urgency-later);
+  color: var(--color-primary-hover);
+  background: var(--color-primary-softer);
+  box-shadow: inset 0 0 0 1px var(--color-primary-soft);
   font-size: var(--font-size-xs);
 }
 
@@ -242,8 +223,9 @@ function openItem(food: InventoryFood) {
   height: 32px;
   place-items: center;
   border-radius: var(--radius-full);
-  color: var(--color-urgency-soon-ink);
-  background: var(--color-urgency-soon);
+  color: var(--color-count-ink);
+  background: var(--color-count-bg);
+  box-shadow: inset 0 0 0 1px var(--color-count-edge);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
 }
@@ -256,28 +238,25 @@ function openItem(food: InventoryFood) {
 }
 
 .inventory-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
 }
 
-.scope-control {
-  display: grid;
-  flex: 1;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-1);
-  padding: 3px;
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-sunken);
+.inventory-toolbar__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
-.scope-control :deep(.app-chip) {
-  min-width: 0;
-  min-height: 36px;
-  padding: var(--space-1);
-  box-shadow: none;
+.inventory-toolbar__heading h2 {
+  font-size: var(--font-size-lg);
+}
+
+.inventory-count {
+  flex: none;
+  white-space: nowrap;
 }
 
 .storage-empty {
@@ -303,18 +282,10 @@ function openItem(food: InventoryFood) {
     padding-left: var(--space-2);
   }
 
-  .storage-header__brand,
-  .storage-header__page {
-    font-size: var(--font-size-base);
-  }
-
   .add-action {
     font-size: var(--font-size-xs);
   }
 
-  .inventory-count {
-    display: none;
-  }
 }
 
 @media (min-width: 720px) {

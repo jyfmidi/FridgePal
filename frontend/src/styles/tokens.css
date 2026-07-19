@@ -17,12 +17,11 @@
   --frd-cream-300: #e5e0d1;
   --frd-cream-400: #d0c9b7;
 
-  /* Navy ramp (ink, structure, rails) */
+  /* Navy ramp (ink and structure) */
   --frd-navy-950: #081226;
   --frd-navy-900: #0b1734;
   --frd-navy-800: #0c2542;
   --frd-navy-700: #143055;
-  --frd-navy-850: #0e2a4a; /* rail gradient top */
   --frd-navy-600: #243a5c;
   --frd-navy-400: #5f6b7a;
   --frd-navy-200: #93a5be;
@@ -53,7 +52,6 @@
 
   /* Shared tint used by the shadow scale */
   --frd-shadow-hue: 11 23 52;
-  --frd-shadow-rail: 4 12 24;
 
   /* Selected-slot halo, consumed with / alpha */
   --frd-halo-blue: 61 123 240;
@@ -71,6 +69,7 @@
   --color-ink: var(--frd-navy-900);
   --color-ink-soft: var(--frd-navy-600);
   --color-muted: var(--frd-navy-400);
+  --color-brand: var(--frd-navy-900);
 
   /* Borders */
   --color-border: var(--frd-cream-300);
@@ -83,14 +82,34 @@
   --color-primary-softer: var(--frd-blue-50);
   --color-on-primary: #ffffff;
 
-  /* Dark rails (Rescue selection rail, recipe match belts) */
-  --color-rail: var(--frd-navy-800);
-  --color-rail-slot: var(--frd-navy-700);
-  --color-rail-edge: var(--frd-navy-600);
-  --color-on-rail: var(--frd-navy-50);
-  --color-on-rail-muted: var(--frd-navy-200);
-  --color-rail-gradient: linear-gradient(180deg, var(--frd-navy-850), var(--color-rail));
-  --color-halo: rgb(var(--frd-halo-blue) / 0.45);
+  /* Selection surfaces are neutral; blue only communicates active selection. */
+  --color-selection-tray: #e8edf3;
+  --color-selection-slot: #ffffff;
+  --color-selection-edge: #cbd4df;
+  --color-selection-muted: #68778a;
+
+  /* Storage location colors never communicate expiry or urgency. */
+  --color-location-fridge-bg: #e4f3e9;
+  --color-location-fridge-ink: #285f43;
+  --color-location-fridge-edge: #afd2bc;
+  --color-location-freezer-bg: #e5f2ff;
+  --color-location-freezer-ink: #215f91;
+  --color-location-freezer-edge: #add0ed;
+  --color-location-pantry-bg: #f4ecdf;
+  --color-location-pantry-ink: #76532f;
+  --color-location-pantry-edge: #dcc7a8;
+
+  /* Counts are informational and deliberately neutral. */
+  --color-count-bg: var(--color-surface-sunken);
+  --color-count-ink: var(--color-ink-soft);
+  --color-count-edge: var(--color-border-strong);
+
+  /* Destructive and failure states are separate from food expiry. */
+  --color-danger: #c6423a;
+  --color-danger-hover: #a93630;
+  --color-danger-soft: #fbe9e7;
+  --color-danger-ink: #7a2621;
+  --color-danger-edge: #e8b7b2;
 
   /* Chrome translucency (sticky headers, bottom nav) */
   --color-header-bg: rgb(247 245 239 / 0.88);
@@ -159,10 +178,6 @@
     0 1px 2px rgb(var(--frd-shadow-hue) / 0.14),
     0 4px 10px rgb(var(--frd-shadow-hue) / 0.14),
     0 0 0 3px rgb(var(--frd-halo-blue) / 0.28);
-  --shadow-inset-rail:
-    inset 0 1px 2px rgb(var(--frd-shadow-rail) / 0.55),
-    inset 0 0 0 1px rgb(var(--frd-shadow-rail) / 0.35);
-
   /* Typography: system-first stack, no bundled webfonts.
      CJK fallbacks keep zh-CN rendering native per platform. */
   --font-family-sans:

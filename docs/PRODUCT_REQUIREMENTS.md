@@ -89,6 +89,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 | `FR-INV-002` | P0 | Suggested expiration equals `stored_on + ShelfLifeRule.duration_days`; the user can override it with one-tap relative options or a date picker. |
 | `FR-INV-003` | P0 | The UI never labels `stored_on` as a production date and identifies whether expiration came from a library default or user override. |
 | `FR-INV-004` | P0 | Saving creates one InventoryLot and one History event only after explicit confirmation. |
+| `FR-INV-005` | P0 | Storage unit entry is a dropdown limited to `g`, `kg`, `ml`, `l`, and `piece`. Each FoodDefinition retains one base unit; compatible `g↔kg` and `ml↔l` check-ins convert exactly into that base unit before persistence. Food-specific count aliases are rejected. |
 
 ### 5.2 Storage and Inventory Truth
 
@@ -100,7 +101,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 | `FR-STO-004` | P0 | Overview tiles aggregate active lots of the same food and location into one quantity; do not display lot-count badges such as `×2`. |
 | `FR-STO-005` | P0 | Tiles show Food Token/monogram, localized name, aggregate quantity, unit, and explicit urgency copy where applicable. |
 | `FR-STO-006` | P0 | Urgency uses five derived levels: Past date, Today, 1–2 days, 3–5 days, and Later. Do not make food-safety claims. |
-| `FR-STO-007` | P0 | Ingredient detail supports quantity edit, location move, expiration edit, consumed reduction, discard, and access to underlying lots. |
+| `FR-STO-007` | P0 | Ingredient detail supports direct quantity and canonical-unit dropdown correction, stored-date edit, location move, expiration edit, consumed reduction, discard, and access to underlying lots. Same-dimension base-unit changes convert every lot transactionally; cross-dimension conversion is never guessed. |
 | `FR-STO-008` | P0 | Manual `Reduce stock` works without a recipe, accepts an amount, previews the affected food, and records a reversible transaction. |
 | `FR-STO-009` | P0 | No operation may persist a negative lot quantity. |
 
@@ -121,12 +122,12 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 | ID | Pri | Requirement |
 |---|---:|---|
 | `FR-SRC-001` | P0 | Search uses selected canonical foods and urgency as explicit constraints and returns grounded source URLs, titles, publishers, and retrieval timestamps. |
-| `FR-SRC-002` | P0 | Each source card shows title, publisher/domain, optional verified time/yield, and a fixed seven-slot ingredient-use belt. |
-| `FR-SRC-003` | P0 | Used slots are bright/elevated and unused slots are dark/recessed without reordering, Uses/Not used groups, fractions, percentages, or coverage scores. |
-| `FR-SRC-004` | P0 | Every source exposes separate `Open source` and `Use this recipe` actions. |
+| `FR-SRC-002` | P0 | Each source card shows title, publisher/domain, a clear AI-organized/incomplete-data notice, and a fixed seven-slot ingredient-use belt. Estimated duration is never shown on source cards; other metadata is optional and omission-safe. |
+| `FR-SRC-003` | P0 | Used slots are bright/elevated and unused slots are dimmed/recessed without duplicate check/minus marks, reordering, Uses/Not used groups, fractions, percentages, or coverage scores. Accessible labels retain the used/not-used meaning. |
+| `FR-SRC-004` | P0 | Every source exposes separate icon-plus-label `Website` and `Edit recipe` actions. The AI Cooking Plan uses the same `Edit recipe` label for the shared editor destination. |
 | `FR-SRC-005` | P0 | Source cards do not claim speculative natural-language missing ingredients such as `You'll also need …`. |
 | `FR-AI-001` | P0 | AI Cooking Plan appears after source results and visibly includes title, description, base yield, ingredient names/amounts/units, instructions preview, contributing-source count, and `Edit recipe`. |
-| `FR-AI-002` | P0 | `Use this recipe` analyzes the selected source into the same normalized RecipeDraft schema used by the AI Cooking Plan. |
+| `FR-AI-002` | P0 | `Edit recipe` analyzes the selected source into the same normalized RecipeDraft schema used by the AI Cooking Plan. |
 | `FR-AI-003` | P0 | All displayed AI/source-derived fields retain provenance or an explicit `Needs review` state; invalid structured output is never presented as verified source truth. |
 | `FR-AI-004` | P0 | Provider failure may disable discovery but never blocks Storage, Add Food, manual inventory actions, Saved Recipes, or History. |
 
@@ -135,14 +136,14 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 | ID | Pri | Requirement |
 |---|---:|---|
 | `FR-EDT-001` | P0 | AI plans, analyzed sources, and saved recipes open one canonical Recipe Editor. |
-| `FR-EDT-002` | P0 | Recipe Editor exposes editable Name, Description, base yield, portion, ingredients, and instructions; Name is required to save. |
+| `FR-EDT-002` | P0 | Recipe Editor exposes editable Name, Description, base yield, portion, ingredients, and ordered instructions that can be freely added or removed; Name is required to save. |
 | `FR-EDT-003` | P0 | Numeric ingredient amounts derive from normalized base amounts and a positive decimal multiplier; qualitative amounts such as `To taste` do not scale. |
-| `FR-EDT-004` | P0 | Show recipe context and base/original yield before portion adjustment. Provide `0.5×`, `Original`, and `Custom`; retrieved/AI recipes may begin at the solo-cook `0.5×` preference without overwriting base values. |
+| `FR-EDT-004` | P0 | Show recipe context and how many servings the full recipe makes before portion adjustment. Provide `0.5×`, `Full recipe`, and `Custom`; retrieved/AI recipes may begin at the solo-cook `0.5×` preference without overwriting base values. |
 | `FR-EDT-005` | P0 | Editing an effective amount at a non-original multiplier updates the normalized base amount so future scaling remains coherent. |
 | `FR-EDT-006` | P0 | `+ Add from storage` opens a complete Storage multi-select picker with no seven-food limit, prevents duplicates, and marks `In recipe` foods. |
 | `FR-EDT-007` | P0 | Newly added Storage foods default to `As needed` until the user chooses a numeric or qualitative amount. Adding/editing never changes Storage. |
 | `FR-EDT-008` | P0 | Recipe drafts autosave internally but do not appear in Recipes until explicit Save or cooking begins. |
-| `FR-RCP-001` | P0 | `Save recipe` creates/updates a SavedRecipe; `Cook this` automatically saves an unsaved draft first. |
+| `FR-RCP-001` | P0 | `Save to Recipes` creates a SavedRecipe and `Update saved recipe` updates one; `Review use & update Storage` automatically saves an unsaved draft before opening reconciliation. |
 | `FR-RCP-002` | P0 | Recipes cards use ingredient-token identity, name, description, origin, optional last-used portion, and `Cook again`; photography is optional, never required. |
 | `FR-RCP-003` | P0 | Opening or cooking again routes through Recipe Editor so portion and ingredients can be reviewed. Current Storage availability is derived on open and never persisted as recipe truth. |
 
@@ -150,7 +151,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 
 | ID | Pri | Requirement |
 |---|---:|---|
-| `FR-COOK-001` | P0 | `Cook this` opens one `What did you use?` surface with scaled recipe amounts prefilled. Starting or cancelling cooking does not mutate Storage. |
+| `FR-COOK-001` | P0 | `Review use & update Storage` opens one `What did you use?` surface with scaled recipe amounts prefilled. Starting or cancelling reconciliation does not mutate Storage. |
 | `FR-COOK-002` | P0 | The user can include/exclude ingredients, edit actual amounts, and add another Storage food used while improvising. |
 | `FR-COOK-003` | P0 | `Update storage` is the only cooking mutation gate and clearly states that nothing changes before confirmation. |
 | `FR-COOK-004` | P0 | Allocation consumes explicitly selected lots first, then active lots of the same food in first-expire-first-out order, with no-date lots last. |
@@ -207,7 +208,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 
 ### `UJ-03` — Turn a Result Into a Recipe
 
-1. Choose `Edit recipe` on the AI Cooking Plan or `Use this recipe` on a source.
+1. Choose `Edit recipe` on either the AI Cooking Plan or a source.
 2. Review provenance and any `Needs review` fields.
 3. Edit Name/Description, portion, ingredients, and instructions.
 4. Add Storage ingredients if desired.
@@ -216,7 +217,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 ### `UJ-04` — Cook and Reconcile
 
 1. Review the recipe and portion.
-2. Tap `Cook this`; unsaved work becomes a SavedRecipe.
+2. Tap `Review use & update Storage`; unsaved work becomes a SavedRecipe.
 3. Adjust actual usage in `What did you use?`.
 4. Confirm `Update storage`.
 5. See updated Storage and an Undo-capable History event.
@@ -240,15 +241,17 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 |---|---|---|---|
 | `AC-INV-01` | A FoodDefinition has a Fridge shelf-life rule | The user selects it in Add Food | Storage defaults to Fridge, `stored_on` defaults to today, and expiration is derived but editable. |
 | `AC-INV-02` | Two active lots contain the same food in one location | Storage renders the overview | One tile shows the summed quantity and no lot-count multiplier. |
+| `AC-INV-03` | A FoodDefinition base unit is `g` | The user checks in `0.5 kg` | One new lot stores `500 g`; repeated requests remain idempotent and no `kg` lot is mixed into the aggregate. |
+| `AC-INV-04` | An existing local FoodDefinition uses `head`, `bulb`, `clove`, or `bunch` | The canonical-unit migration runs | The unit becomes `piece`, the numeric lot quantities stay unchanged, and subsequent runs make no further mutation. |
 | `AC-STO-01` | Seven foods are inside the attention window | Storage opens | All seven appear in Use Soon and also remain in complete inventory. |
 | `AC-RES-01` | Five Rescue slots are filled | The user taps an empty slot | The complete Storage picker opens, permits two more selections, and blocks an eighth. |
 | `AC-RES-02` | A searched RescueSession exists | The application is closed and reopened | Recent searches restores its exact selected order and result snapshot. |
 | `AC-SRC-01` | A result uses four of seven selected foods | The source card renders | All seven slots remain ordered; four are bright and three dark, with accessible used/not-used labels and no score. |
-| `AC-SRC-02` | A source result exists | The user chooses `Open source` versus `Use this recipe` | The first opens the safe external URL; the second creates/analyzes a RecipeDraft. |
+| `AC-SRC-02` | A source result exists | The user chooses `Website` versus `Edit recipe` | The first opens the safe external URL; the second creates/analyzes a RecipeDraft. |
 | `AC-AI-01` | Grounded sources were retrieved | AI Cooking Plan renders | Ingredient amounts and provenance are visible before Recipe Editor is opened. |
 | `AC-EDT-01` | A two-serving base recipe is open | The user selects `0.5×` | Effective numeric amounts and serving count halve while base amounts remain unchanged. |
 | `AC-EDT-02` | Six foods are already in a recipe | The user opens Add from Storage | Existing foods show `In recipe`, duplicates are blocked, and any number of other foods may be added. |
-| `AC-RCP-01` | An unsaved RecipeDraft is open | The user taps `Cook this` | A SavedRecipe is created before reconciliation, and cooking continues without a second save prompt. |
+| `AC-RCP-01` | An unsaved RecipeDraft is open | The user taps `Review use & update Storage` | A SavedRecipe is created before reconciliation, and cooking continues without a second save prompt. |
 | `AC-COOK-01` | A valid deduction preview exists | The user confirms Update Storage | All lot deltas and History entries commit atomically and quantities stay non-negative. |
 | `AC-COOK-02` | Inventory changed after preview | The user submits the stale preview | Nothing commits; affected values recalculate and require reconfirmation. |
 | `AC-HIS-01` | A cooking commit completed | The user activates Undo | Compensating transactions restore the prior totals and both original and reversal remain in History. |

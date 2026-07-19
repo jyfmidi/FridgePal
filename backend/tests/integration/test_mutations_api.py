@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.infrastructure.db.models import ActivityEventRow, InventoryTransactionRow
 from app.main import create_app
 from fastapi.testclient import TestClient
+from httpx import Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -55,6 +56,81 @@ def storage_quantity(client: TestClient, food: str, location: str) -> str | None
         if item["foodKey"] == food and item["location"] == location:
             return item["quantity"]
     return None
+
+
+def post_check_in(
+    client: TestClient,
+    key: str,
+    *,
+    food: str,
+    quantity: str,
+    unit: str,
+) -> Response:
+    return client.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": key,
+            "foodKey": food,
+            "names": {"en": food.title()},
+            "quantity": quantity,
+            "unit": unit,
+            "location": "FRIDGE",
+            "storedOn": "2026-07-18",
+            "expiresOn": None,
+            "expirySource": "NONE",
+        },
+    )
+
+
+def test_check_in_converts_compatible_mass_and_volume_units(
+    tmp_path: Path, monkeypatch
+) -> None:
+    client = make_client(tmp_path, monkeypatch)
+    cases = (
+        ("mass-to-g", "100", "g", "0.5", "kg", "600", "g"),
+        ("mass-to-kg", "2", "kg", "500", "g", "2.5", "kg"),
+        ("volume-to-ml", "250", "ml", "1.5", "l", "1750", "ml"),
+        ("volume-to-l", "2", "l", "500", "ml", "2.5", "l"),
+    )
+
+    for food, first_quantity, first_unit, second_quantity, second_unit, total, base_unit in cases:
+        check_in(
+            client,
+            f"{food}-first",
+            food=food,
+            quantity=first_quantity,
+            unit=first_unit,
+            expires_on=None,
+        )
+        response = post_check_in(
+            client,
+            f"{food}-second",
+            food=food,
+            quantity=second_quantity,
+            unit=second_unit,
+        )
+
+        assert response.status_code == 201, response.text
+        storage = client.get("/api/storage?today=2026-07-18").json()["inventory"]
+        item = next(row for row in storage if row["foodKey"] == food)
+        assert item["quantity"] == total
+        assert item["unit"] == base_unit
+    get_settings.cache_clear()
+
+
+def test_check_in_rejects_food_specific_count_units(tmp_path: Path, monkeypatch) -> None:
+    client = make_client(tmp_path, monkeypatch)
+
+    for unit in ("head", "bulb", "clove", "bunch"):
+        response = post_check_in(
+            client,
+            f"reject-{unit}",
+            food=f"food-{unit}",
+            quantity="2",
+            unit=unit,
+        )
+        assert response.status_code == 422
+    get_settings.cache_clear()
 
 
 def test_lots_listing_returns_fefo_order(tmp_path: Path, monkeypatch) -> None:
@@ -124,6 +200,73 @@ def test_patch_lot_quantity_and_location(tmp_path: Path, monkeypatch) -> None:
         json={"idempotencyKey": "patch-5", "quantity": "0"},
     )
     assert zero.status_code == 422
+    get_settings.cache_clear()
+
+
+def test_patch_lot_corrects_unit_and_stored_date_in_one_audited_edit(
+    tmp_path: Path, monkeypatch
+) -> None:
+    client = make_client(tmp_path, monkeypatch)
+    lot_id = check_in(client, "patch-unit-date", food="garlic", quantity="80", unit="g")
+
+    edited = client.patch(
+        f"/api/lots/{lot_id}",
+        json={
+            "idempotencyKey": "patch-unit-date-1",
+            "quantity": "0.08",
+            "unit": "kg",
+            "storedOn": "2026-07-16",
+        },
+    )
+
+    assert edited.status_code == 200, edited.text
+    lots = client.get("/api/inventory/lots?foodKey=garlic&location=FRIDGE").json()["lots"]
+    assert lots[0]["quantity"] == "0.08"
+    assert lots[0]["unit"] == "kg"
+    assert lots[0]["storedOn"] == "2026-07-16"
+    assert storage_quantity(client, "garlic", "FRIDGE") == "0.08"
+
+    engine = client.app.state.database_engine
+    with Session(engine) as session:
+        event = session.scalar(
+            select(ActivityEventRow).where(
+                ActivityEventRow.idempotency_key == "patch-unit-date-1"
+            )
+        )
+        assert event is not None
+        assert event.display_snapshot["changes"]["unit"] == {"from": "g", "to": "kg"}
+        assert event.display_snapshot["changes"]["storedOn"] == {
+            "from": "2026-07-18",
+            "to": "2026-07-16",
+        }
+
+    blank_unit = client.patch(
+        f"/api/lots/{lot_id}",
+        json={"idempotencyKey": "patch-unit-date-2", "unit": "   "},
+    )
+    assert blank_unit.status_code == 422
+    get_settings.cache_clear()
+
+
+def test_patch_base_unit_converts_every_lot_transactionally(
+    tmp_path: Path, monkeypatch
+) -> None:
+    client = make_client(tmp_path, monkeypatch)
+    first = check_in(client, "convert-lot-1", food="rice", quantity="500", unit="g")
+    second = check_in(client, "convert-lot-2", food="rice", quantity="750", unit="g")
+
+    edited = client.patch(
+        f"/api/lots/{first}",
+        json={"idempotencyKey": "convert-base-unit", "unit": "kg"},
+    )
+
+    assert edited.status_code == 200, edited.text
+    lots = client.get("/api/inventory/lots?foodKey=rice&location=FRIDGE").json()["lots"]
+    by_id = {lot["lotId"]: lot for lot in lots}
+    assert by_id[first]["quantity"] == "0.5"
+    assert by_id[second]["quantity"] == "0.75"
+    assert {lot["unit"] for lot in lots} == {"kg"}
+    assert storage_quantity(client, "rice", "FRIDGE") == "1.25"
     get_settings.cache_clear()
 
 

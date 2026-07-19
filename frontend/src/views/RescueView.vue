@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
+import AppPageHeader from '../components/AppPageHeader.vue'
+import FoodToken from '../components/food-token/FoodToken.vue'
 import SelectionRail from '../components/rescue/SelectionRail.vue'
 import { useRescueStore } from '../features/rescue/rescueStore'
 import { useInventoryStore } from '../features/storage/inventoryStore'
@@ -10,20 +12,48 @@ import { useInventoryStore } from '../features/storage/inventoryStore'
 const { t } = useI18n()
 const router = useRouter()
 const { inventory, hydrateFromServer } = useInventoryStore()
-const { selectedFoods, selectedIds, removeFood } = useRescueStore(inventory)
+const { selectedFoods, selectedIds, removeFood, replaceSelection } = useRescueStore(inventory)
+const recentSection = ref<HTMLElement | null>(null)
+
+const recentFixtures = [
+  {
+    titleKey: 'rescue.recentHighProtein',
+    foodKeys: ['chicken-breast', 'tofu', 'eggs', 'broccoli', 'spinach'],
+  },
+  {
+    titleKey: 'rescue.recentFresh',
+    foodKeys: ['spinach', 'broccoli', 'mushrooms', 'lemon', 'tomatoes', 'carrots', 'tofu'],
+  },
+]
+
+const recentSearches = computed(() =>
+  recentFixtures.map((item) => ({
+    ...item,
+    foods: item.foodKeys
+      .map((foodKey) => inventory.value.find((food) => food.foodKey === foodKey))
+      .filter((food) => food !== undefined),
+  })),
+)
 
 onMounted(() => {
   void hydrateFromServer()
 })
+
+function openRecent(foodIds: string[]) {
+  replaceSelection(foodIds)
+  void router.push('/rescue/results')
+}
 </script>
 
 <template>
   <div class="rescue-view">
-    <header class="rescue-header">
-      <strong>{{ t('app.title') }}</strong>
-      <span>{{ t('rescue.title') }}</span>
-      <button type="button">{{ t('rescue.recent') }}</button>
-    </header>
+    <AppPageHeader :title="t('rescue.title')">
+      <template #actions>
+        <button class="recent-action" type="button" @click="recentSection?.scrollIntoView({ block: 'start' })">
+          {{ t('rescue.recent') }}
+        </button>
+      </template>
+    </AppPageHeader>
 
     <main class="rescue-content">
       <section class="rescue-intro">
@@ -42,17 +72,31 @@ onMounted(() => {
         {{ t('rescue.findIdeas') }}
       </AppButton>
 
-      <section class="recent-searches">
+      <section ref="recentSection" class="recent-searches">
         <h2>{{ t('rescue.continueTitle') }}</h2>
         <div class="recent-card-row">
-          <article>
-            <strong>{{ t('rescue.recentHighProtein') }}</strong>
-            <span>{{ t('rescue.foodCount', { count: 5 }) }}</span>
-          </article>
-          <article>
-            <strong>{{ t('rescue.recentFresh') }}</strong>
-            <span>{{ t('rescue.foodCount', { count: 7 }) }}</span>
-          </article>
+          <button
+            v-for="item in recentSearches"
+            :key="item.titleKey"
+            type="button"
+            :aria-label="t('rescue.continueSearch', { name: t(item.titleKey) })"
+            @click="openRecent(item.foods.map((food) => food.id))"
+          >
+            <span class="recent-card__tokens" aria-hidden="true">
+              <FoodToken
+                v-for="food in item.foods.slice(0, 4)"
+                :key="food.id"
+                :food-key="food.foodKey"
+                :name="t(food.nameKey)"
+                :size="30"
+              />
+            </span>
+            <span class="recent-card__copy">
+              <strong>{{ t(item.titleKey) }}</strong>
+              <span>{{ t('rescue.foodCount', { count: item.foods.length }) }}</span>
+            </span>
+            <span class="recent-card__arrow" aria-hidden="true">›</span>
+          </button>
         </div>
       </section>
     </main>
@@ -67,30 +111,8 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-.rescue-header {
-  position: sticky;
-  z-index: var(--z-sticky);
-  top: 0;
-  display: grid;
-  min-height: 64px;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  padding-top: var(--safe-area-top);
-  background: var(--color-header-bg);
-  border-bottom: 1px solid var(--color-border);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-}
-
-.rescue-header strong,
-.rescue-header span {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-}
-
-.rescue-header button {
+.recent-action {
   min-height: var(--tap-target-min);
-  justify-self: end;
   color: var(--color-primary);
   font-weight: var(--font-weight-semibold);
 }
@@ -141,20 +163,52 @@ onMounted(() => {
   gap: var(--space-2);
 }
 
-.recent-card-row article {
-  display: flex;
-  min-height: 92px;
-  flex-direction: column;
-  justify-content: end;
-  gap: var(--space-1);
+.recent-card-row > button {
+  display: grid;
+  min-width: 0;
+  min-height: 126px;
+  grid-template-columns: 1fr auto;
+  align-content: space-between;
+  gap: var(--space-2);
   padding: var(--space-3);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
+  text-align: left;
+  transition: box-shadow var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard);
 }
 
-.recent-card-row span {
+.recent-card-row > button:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.recent-card__tokens {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 3px;
+}
+
+.recent-card__copy {
+  display: grid;
+  min-width: 0;
+}
+
+.recent-card__copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-card__copy > span {
   color: var(--color-muted);
   font-size: var(--font-size-xs);
+}
+
+.recent-card__arrow {
+  align-self: end;
+  color: var(--color-primary);
+  font-size: var(--font-size-xl);
+  line-height: 1;
 }
 </style>

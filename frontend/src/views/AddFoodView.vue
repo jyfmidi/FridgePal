@@ -3,14 +3,25 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
-import AppChip from '../components/AppChip.vue'
+import AppTaskHeader from '../components/AppTaskHeader.vue'
 import FoodToken from '../components/food-token/FoodToken.vue'
-import { foodCatalog, type FoodCatalogItem, type InventoryUnit, type StorageLocation } from '../features/storage/inventory'
+import LocationFilterBar from '../components/LocationFilterBar.vue'
+import {
+  compatibleInventoryUnits,
+  convertInventoryQuantity,
+  foodCatalog,
+  inventoryUnits,
+  isInventoryUnit,
+  roundInventoryQuantity,
+  type FoodCatalogItem,
+  type InventoryUnit,
+  type StorageLocation,
+} from '../features/storage/inventory'
 import { useInventoryStore } from '../features/storage/inventoryStore'
 
 const { t, locale } = useI18n()
 const router = useRouter()
-const { checkIn } = useInventoryStore()
+const { inventory, checkIn } = useInventoryStore()
 
 const today = new Date().toISOString().slice(0, 10)
 const query = ref('')
@@ -26,13 +37,9 @@ const selected = ref<FoodCatalogItem | CustomFoodDraft | null>(null)
 const location = ref<StorageLocation>('fridge')
 const quantity = ref(1)
 const unit = ref<InventoryUnit>('piece')
-const customUnit = ref('g')
 const storedOn = ref(today)
 const expiresOn = ref('')
 const saving = ref(false)
-
-const locations: StorageLocation[] = ['fridge', 'freezer', 'pantry']
-const units: InventoryUnit[] = ['g', 'kg', 'ml', 'piece', 'head', 'bulb']
 
 const trimmedQuery = computed(() => query.value.trim())
 
@@ -43,6 +50,14 @@ const suggestions = computed(() => {
 
 const showCreateCustom = computed(() => trimmedQuery.value.length > 0 && suggestions.value.length === 0)
 const isCustomSelected = computed(() => !!selected.value && 'custom' in selected.value)
+const unitOptions = computed<InventoryUnit[]>(() => {
+  if (isCustomSelected.value) return [...inventoryUnits]
+  const selection = selected.value
+  if (!selection || 'custom' in selection) return [...inventoryUnits]
+  const existingUnit = inventory.value.find((food) => food.foodKey === selection.foodKey)?.unit
+  const baseUnit = existingUnit && isInventoryUnit(existingUnit) ? existingUnit : selection.defaultUnit
+  return compatibleInventoryUnits(baseUnit)
+})
 
 /** Lowercase, non-alphanumerics collapse to `-` (Unicode-aware so CJK names keep their characters). */
 function slugify(name: string): string {
@@ -55,7 +70,7 @@ function createCustomFood() {
   const name = trimmedQuery.value
   if (!name) return
   selected.value = { custom: true, name, foodKey: customFoodKey.value }
-  customUnit.value = 'g'
+  unit.value = 'g'
   expiresOn.value = ''
 }
 
@@ -67,8 +82,18 @@ function toDateInput(date: Date) {
 function chooseFood(food: FoodCatalogItem) {
   selected.value = food
   location.value = food.defaultLocation
-  quantity.value = food.defaultQuantity
-  unit.value = food.defaultUnit
+  const existingUnit = inventory.value.find((item) => item.foodKey === food.foodKey)?.unit
+  if (existingUnit && isInventoryUnit(existingUnit)) {
+    unit.value = existingUnit
+    quantity.value = compatibleInventoryUnits(existingUnit).includes(food.defaultUnit)
+      ? roundInventoryQuantity(
+          convertInventoryQuantity(food.defaultQuantity, food.defaultUnit, existingUnit),
+        )
+      : 1
+  } else {
+    unit.value = food.defaultUnit
+    quantity.value = food.defaultQuantity
+  }
   if (food.shelfLifeDays !== undefined) {
     const suggested = new Date(`${storedOn.value}T00:00:00`)
     suggested.setDate(suggested.getDate() + food.shelfLifeDays)
@@ -76,6 +101,19 @@ function chooseFood(food: FoodCatalogItem) {
   } else {
     expiresOn.value = ''
   }
+}
+
+function chooseUnit(event: Event) {
+  const nextUnit = (event.target as HTMLSelectElement).value
+  if (!isInventoryUnit(nextUnit) || nextUnit === unit.value) return
+  try {
+    quantity.value = roundInventoryQuantity(
+      convertInventoryQuantity(quantity.value, unit.value, nextUnit),
+    )
+  } catch {
+    // A new custom food may intentionally choose a different dimension.
+  }
+  unit.value = nextUnit
 }
 
 async function save() {
@@ -88,7 +126,7 @@ async function save() {
     nameKey: custom ? undefined : selection.nameKey,
     names: custom ? { en: selection.name, 'zh-CN': selection.name } : selection.names,
     quantity: quantity.value,
-    unit: custom ? customUnit.value.trim() || 'g' : unit.value,
+    unit: unit.value,
     location: location.value,
     storedOn: storedOn.value,
     expiresOn: expiresOn.value || undefined,
@@ -99,11 +137,7 @@ async function save() {
 
 <template>
   <div class="add-food-view">
-    <header class="task-header">
-      <button type="button" :aria-label="t('common.back')" @click="router.back()">‹</button>
-      <h1>{{ t('addFood.title') }}</h1>
-      <span aria-hidden="true" />
-    </header>
+    <AppTaskHeader :title="t('addFood.title')" :back-label="t('common.back')" @back="router.back()" />
 
     <main class="add-food-content">
       <section>
@@ -143,11 +177,7 @@ async function save() {
       <template v-if="selected">
         <section class="form-section">
           <span class="field-label">{{ t('addFood.location') }}</span>
-          <div class="segmented-control">
-            <AppChip v-for="item in locations" :key="item" :selected="location === item" @toggle="location = item">
-              {{ t(`storage.scopes.${item}`) }}
-            </AppChip>
-          </div>
+          <LocationFilterBar v-model="location" :label="t('addFood.location')" />
         </section>
 
         <section class="form-section form-row">
@@ -155,19 +185,12 @@ async function save() {
             <span class="field-label">{{ t('addFood.quantity') }}</span>
             <input v-model.number="quantity" class="text-input" type="number" min="0.01" step="0.01">
           </label>
-          <label v-if="isCustomSelected">
-            <span class="field-label">{{ t('addFood.baseUnit') }}</span>
-            <input v-model="customUnit" class="text-input" type="text" list="base-unit-options">
-            <datalist id="base-unit-options">
-              <option v-for="item in units" :key="item" :value="item" />
-            </datalist>
-            <small>{{ t('addFood.baseUnitHint') }}</small>
-          </label>
-          <label v-else>
-            <span class="field-label">{{ t('addFood.unit') }}</span>
-            <select v-model="unit" class="text-input">
-              <option v-for="item in units" :key="item" :value="item">{{ t(`units.${item}`, { count: quantity }) }}</option>
+          <label>
+            <span class="field-label">{{ t(isCustomSelected ? 'addFood.baseUnit' : 'addFood.unit') }}</span>
+            <select :value="unit" class="text-input" @change="chooseUnit">
+              <option v-for="item in unitOptions" :key="item" :value="item">{{ t(`units.${item}`, quantity) }}</option>
             </select>
+            <small v-if="isCustomSelected">{{ t('addFood.baseUnitHint') }}</small>
           </label>
         </section>
 
@@ -200,32 +223,6 @@ async function save() {
   padding-bottom: 92px;
   margin: 0 auto;
   background: var(--color-canvas);
-}
-
-.task-header {
-  position: sticky;
-  z-index: var(--z-sticky);
-  top: 0;
-  display: grid;
-  min-height: 64px;
-  grid-template-columns: 44px 1fr 44px;
-  align-items: center;
-  padding-top: var(--safe-area-top);
-  background: var(--color-header-bg);
-  border-bottom: 1px solid var(--color-border);
-  text-align: center;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-
-.task-header button {
-  min-height: var(--tap-target-min);
-  color: var(--color-primary);
-  font-size: 2rem;
-}
-
-.task-header h1 {
-  font-size: var(--font-size-lg);
 }
 
 .add-food-content {
@@ -311,12 +308,6 @@ async function save() {
   border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
-}
-
-.segmented-control {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-1);
 }
 
 .form-row {

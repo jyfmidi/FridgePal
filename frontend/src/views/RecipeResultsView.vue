@@ -3,8 +3,10 @@ import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
-import FoodToken from '../components/food-token/FoodToken.vue'
+import AppIcon from '../components/AppIcon.vue'
+import AppTaskHeader from '../components/AppTaskHeader.vue'
 import RecipeMatchBelt from '../components/recipes/RecipeMatchBelt.vue'
+import SelectionRail from '../components/rescue/SelectionRail.vue'
 import { buildPlanIngredients, recipeSources } from '../features/recipes/fixtures'
 import { useRescueStore } from '../features/rescue/rescueStore'
 import { useInventoryStore } from '../features/storage/inventoryStore'
@@ -26,11 +28,14 @@ function editRecipe(origin: string) {
 
 <template>
   <div class="results-view">
-    <header class="results-header">
-      <button type="button" :aria-label="t('common.back')" @click="router.push('/rescue')">←</button>
-      <strong>{{ t('recipeResults.title') }}</strong>
-      <button type="button" @click="router.push('/rescue/choose')">{{ t('recipeResults.changeFoods') }}</button>
-    </header>
+    <AppTaskHeader :title="t('recipeResults.title')" :back-label="t('common.back')" @back="router.push('/rescue')">
+      <template #action>
+        <button class="header-action" type="button" @click="router.push('/rescue/choose')">
+          <AppIcon name="swap" :size="17" />
+          {{ t('recipeResults.changeFoods') }}
+        </button>
+      </template>
+    </AppTaskHeader>
 
     <main class="results-content">
       <section class="using-strip" aria-labelledby="using-title">
@@ -38,12 +43,7 @@ function editRecipe(origin: string) {
           <h1 id="using-title">{{ t('recipeResults.using') }}</h1>
           <span>{{ selectedFoods.length }}/7</span>
         </div>
-        <div class="using-strip__foods">
-          <div v-for="food in selectedFoods" :key="food.id">
-            <FoodToken :food-key="food.foodKey" :name="t(food.nameKey)" :size="38" />
-            <span>{{ t(food.nameKey) }}</span>
-          </div>
-        </div>
+        <SelectionRail :foods="selectedFoods" />
       </section>
 
       <section class="source-section stagger-in" aria-labelledby="sources-title">
@@ -58,14 +58,16 @@ function editRecipe(origin: string) {
             <span>{{ source.domain }}</span>
           </div>
           <h3>{{ source.title }}</h3>
-          <div class="source-card__meta">
-            <span>{{ t('recipeResults.minutes', { count: source.minutes }) }}</span>
-            <span>{{ t('recipeResults.serves', { count: source.serves }) }}</span>
-          </div>
           <RecipeMatchBelt :foods="selectedFoods" :used-food-keys="source.usedFoodKeys" />
           <div class="source-card__actions">
-            <a :href="source.url" target="_blank" rel="noopener noreferrer">{{ t('recipeResults.openSource') }} ↗</a>
-            <AppButton size="small" @click="editRecipe(source.id)">{{ t('recipeResults.useRecipe') }}</AppButton>
+            <a :href="source.url" target="_blank" rel="noopener noreferrer">
+              <AppIcon name="globe" :size="18" />
+              {{ t('recipeResults.website') }}
+            </a>
+            <AppButton size="small" @click="editRecipe(source.id)">
+              <AppIcon name="edit" :size="17" />
+              {{ t('recipeResults.editRecipe') }}
+            </AppButton>
           </div>
         </article>
       </section>
@@ -104,7 +106,10 @@ function editRecipe(origin: string) {
 
         <div class="ai-plan__footer">
           <span>{{ t('recipeResults.sourceCount', { count: recipeSources.length }) }}</span>
-          <AppButton @click="editRecipe('ai-plan')">{{ t('recipeResults.editRecipe') }}</AppButton>
+          <AppButton @click="editRecipe('ai-plan')">
+            <AppIcon name="edit" :size="18" />
+            {{ t('recipeResults.editRecipe') }}
+          </AppButton>
         </div>
       </section>
     </main>
@@ -119,60 +124,30 @@ function editRecipe(origin: string) {
   margin: 0 auto;
 }
 
-.results-header {
-  position: sticky;
-  z-index: var(--z-sticky);
-  top: 0;
-  display: grid;
-  min-height: 64px;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  padding-top: var(--safe-area-top);
-  background: var(--color-header-bg);
-  border-bottom: 1px solid var(--color-border);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-}
-
-.results-header strong {
-  font-size: var(--font-size-lg);
-}
-
-.results-header button {
-  min-height: var(--tap-target-min);
-  color: var(--color-primary);
-  font-weight: var(--font-weight-semibold);
-}
-
-.results-header button:first-child {
-  justify-self: start;
-  font-size: var(--font-size-xl);
-}
-
-.results-header button:last-child {
-  justify-self: end;
-}
-
 .results-content {
   display: grid;
   gap: var(--space-8);
   padding-top: var(--space-5);
 }
 
+.header-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .using-strip {
   position: sticky;
   z-index: calc(var(--z-sticky) - 1);
   top: calc(64px + var(--safe-area-top));
-  padding: var(--space-3);
-  border-radius: var(--radius-lg);
-  color: var(--color-on-rail);
-  background: var(--color-rail);
-  box-shadow: var(--shadow-md);
+  padding: var(--space-2) 0 var(--space-3);
+  color: var(--color-ink);
+  background: var(--color-header-bg);
+  backdrop-filter: blur(14px);
 }
 
 .section-heading,
 .source-card__topline,
-.source-card__meta,
 .source-card__actions,
 .ai-plan__yield,
 .ai-plan__footer {
@@ -189,33 +164,12 @@ function editRecipe(origin: string) {
 }
 
 .section-heading span {
-  color: var(--color-on-rail-muted);
+  color: var(--color-selection-muted);
   font-size: var(--font-size-xs);
 }
 
-.using-strip__foods {
-  display: flex;
-  gap: var(--space-2);
-  padding-top: var(--space-2);
-  overflow-x: auto;
-}
-
-.using-strip__foods > div {
-  display: flex;
-  min-width: 50px;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.using-strip__foods span {
-  width: 58px;
-  overflow: hidden;
-  color: var(--color-on-rail-muted);
-  font-size: 0.625rem;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.using-strip :deep(.selection-rail) {
+  margin-top: var(--space-2);
 }
 
 .source-section {
@@ -238,8 +192,7 @@ function editRecipe(origin: string) {
   box-shadow: var(--shadow-sm);
 }
 
-.source-card__topline,
-.source-card__meta {
+.source-card__topline {
   color: var(--color-muted);
   font-size: var(--font-size-xs);
 }
@@ -256,6 +209,7 @@ function editRecipe(origin: string) {
   min-height: var(--tap-target-min);
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   font-weight: var(--font-weight-semibold);
 }
 
@@ -265,7 +219,7 @@ function editRecipe(origin: string) {
   padding: var(--space-5);
   border: 1px solid var(--color-primary-soft);
   border-radius: var(--radius-xl);
-  background: linear-gradient(145deg, var(--color-primary-softer), var(--color-surface) 48%);
+  background: var(--color-primary-softer);
   box-shadow: var(--shadow-md);
 }
 
@@ -360,15 +314,6 @@ function editRecipe(origin: string) {
 }
 
 @media (max-width: 420px) {
-  .results-header strong {
-    font-size: var(--font-size-base);
-  }
-
-  .results-header button:last-child {
-    max-width: 90px;
-    font-size: var(--font-size-sm);
-  }
-
   .source-card,
   .ai-plan {
     padding: var(--space-4);
@@ -377,6 +322,15 @@ function editRecipe(origin: string) {
   .ai-plan__footer {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .source-card__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .source-card__actions a {
+    justify-content: center;
   }
 }
 </style>

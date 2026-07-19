@@ -60,6 +60,47 @@ These boards are mobile-first reference states. They do not imply that exact gen
 - Custom storage locations beyond Fridge, Freezer, and Pantry.
 - A chat-first interface or an autonomous agent that mutates inventory without confirmation.
 
+## Development
+
+> **Warning:** Fridgital has no authentication. Run it on a private network or loopback only.
+
+Backend (Python 3.11+):
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+pytest tests                 # boot smoke test
+ruff check . && ruff format --check . && mypy app
+uvicorn app.main:app --reload   # serves http://localhost:8000/api/health
+```
+
+Frontend (Node 22+):
+
+```bash
+cd frontend
+npm install
+npm run dev        # http://localhost:5173, proxies /api to localhost:8000
+npm run typecheck && npm run lint && npm run build
+```
+
+End-to-end tests (Playwright, browsers not installed by default):
+
+```bash
+cd e2e
+npm install
+npx playwright install   # one-time browser download
+npm test
+```
+
+Docker deployment:
+
+```bash
+cp .env.example .env   # set MYSQL_USER / MYSQL_PASSWORD
+docker compose up --build   # app on http://localhost:8080
+```
+
 ## Decisions Required Before Scaffolding
 
 - `OQ-01`: application framework, database library, and test stack.

@@ -27,6 +27,8 @@ from app.application.inventory.service import (
     list_lots,
     reduce_inventory,
 )
+from app.domain.errors import DomainError
+from app.domain.inventory_unit import canonical_inventory_unit
 from app.domain.types import ExpirySource, StorageLocation
 
 router = APIRouter()
@@ -52,6 +54,11 @@ class CheckInRequest(BaseModel):
             raise ValueError("quantity must be positive")
         return value
 
+    @field_validator("unit")
+    @classmethod
+    def unit_must_be_canonical(cls, value: str) -> str:
+        return canonical_inventory_unit(value)
+
     @field_validator("names")
     @classmethod
     def names_must_include_english(cls, value: dict[str, str]) -> dict[str, str]:
@@ -65,14 +72,32 @@ class EditLotRequest(BaseModel):
 
     idempotency_key: str = Field(alias="idempotencyKey", min_length=1, max_length=120)
     quantity: Decimal | None = Field(default=None, gt=0)
+    unit: str | None = Field(default=None, min_length=1, max_length=20)
     location: StorageLocation | None = None
+    stored_on: date | None = Field(default=None, alias="storedOn")
     expires_on: date | None = Field(default=None, alias="expiresOn")
+
+    @field_validator("unit")
+    @classmethod
+    def normalize_unit(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return canonical_inventory_unit(value)
+
+    @field_validator("stored_on")
+    @classmethod
+    def stored_on_cannot_be_cleared(cls, value: date | None) -> date | None:
+        if value is None:
+            raise ValueError("storedOn cannot be empty")
+        return value
 
     @model_validator(mode="after")
     def at_least_one_editable_field(self) -> "EditLotRequest":
         if (
             self.quantity is None
+            and self.unit is None
             and self.location is None
+            and "stored_on" not in self.model_fields_set
             and "expires_on" not in self.model_fields_set
         ):
             raise ValueError("at least one editable field is required")
@@ -88,6 +113,11 @@ class ReduceRequest(BaseModel):
     amount: Decimal = Field(gt=0)
     unit: str = Field(min_length=1, max_length=20)
 
+    @field_validator("unit")
+    @classmethod
+    def unit_must_be_canonical(cls, value: str) -> str:
+        return canonical_inventory_unit(value)
+
 
 class DiscardRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -101,6 +131,11 @@ class CookingPreviewItem(BaseModel):
     food_key: str = Field(alias="foodKey", min_length=1, max_length=100)
     amount: Decimal = Field(gt=0)
     unit: str = Field(min_length=1, max_length=20)
+
+    @field_validator("unit")
+    @classmethod
+    def unit_must_be_canonical(cls, value: str) -> str:
+        return canonical_inventory_unit(value)
 
 
 class CookingPreviewRequest(BaseModel):
@@ -157,7 +192,7 @@ def build_inventory_router(session_provider) -> APIRouter:
                     expiry_source=payload.expiry_source.value,
                 ),
             )
-        except ValueError as error:
+        except (ValueError, DomainError) as error:
             session.rollback()
             raise HTTPException(status_code=409, detail=str(error)) from error
         if result.replayed:
@@ -196,7 +231,10 @@ def build_inventory_router(session_provider) -> APIRouter:
                     idempotency_key=payload.idempotency_key,
                     lot_id=lot_id,
                     quantity=payload.quantity,
+                    unit=payload.unit,
                     location=payload.location.value if payload.location else None,
+                    stored_on=payload.stored_on,
+                    stored_on_provided="stored_on" in payload.model_fields_set,
                     expires_on=payload.expires_on,
                     expires_on_provided="expires_on" in payload.model_fields_set,
                 ),
@@ -204,6 +242,9 @@ def build_inventory_router(session_provider) -> APIRouter:
         except LotNotFoundError as error:
             session.rollback()
             raise HTTPException(status_code=404, detail=str(error)) from error
+        except (ValueError, DomainError) as error:
+            session.rollback()
+            raise HTTPException(status_code=409, detail=str(error)) from error
         return {"lotId": result.lot_id, "replayed": result.replayed}
 
     @api.post("/inventory/reduce")
@@ -222,7 +263,7 @@ def build_inventory_router(session_provider) -> APIRouter:
                     unit=payload.unit,
                 ),
             )
-        except ValueError as error:
+        except (ValueError, DomainError) as error:
             session.rollback()
             raise HTTPException(status_code=409, detail=str(error)) from error
         body: dict[str, object] = {
@@ -257,14 +298,18 @@ def build_inventory_router(session_provider) -> APIRouter:
         payload: CookingPreviewRequest,
         session: Annotated[Session, Depends(session_provider)],
     ) -> dict[str, object]:
-        return cooking_preview(
-            session,
-            [
-                PreviewItem(food_key=item.food_key, amount=item.amount, unit=item.unit)
-                for item in payload.items
-            ],
-            payload.location.value if payload.location else None,
-        )
+        try:
+            return cooking_preview(
+                session,
+                [
+                    PreviewItem(food_key=item.food_key, amount=item.amount, unit=item.unit)
+                    for item in payload.items
+                ],
+                payload.location.value if payload.location else None,
+            )
+        except (ValueError, DomainError) as error:
+            session.rollback()
+            raise HTTPException(status_code=409, detail=str(error)) from error
 
     @api.post("/cooking/commit", status_code=status.HTTP_201_CREATED)
     def commit(

@@ -47,6 +47,11 @@ function removeFood(foodId: string) {
   }
 }
 
+function replaceSelection(foodIds: string[]) {
+  selectedIds.value = [...new Set(foodIds)].slice(0, 7)
+  persist()
+}
+
 export function useRescueStore(inventory: Ref<InventoryFood[]>) {
   const selectedFoods = computed(() => {
     const byId = new Map(inventory.value.map((food) => [food.id, food]))
@@ -59,5 +64,6 @@ export function useRescueStore(inventory: Ref<InventoryFood[]>) {
     isAtCapacity: computed(() => selectedIds.value.length >= 7),
     toggleFood,
     removeFood,
+    replaceSelection,
   }
 }

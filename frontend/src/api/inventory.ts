@@ -40,7 +40,9 @@ interface LotsResponse {
 
 export interface PatchLotInput {
   quantity?: string
+  unit?: string
   location?: ApiLocation
+  storedOn?: string
   expiresOn?: string | null
 }
 

@@ -11,7 +11,7 @@ from app.api.health import router as health_router
 from app.api.inventory import build_inventory_router
 from app.config import get_settings
 from app.infrastructure.db import models as _models  # noqa: F401
-from app.infrastructure.db.demo_seed import seed_demo_inventory
+from app.infrastructure.db.demo_seed import normalize_legacy_inventory_units, seed_demo_inventory
 from app.infrastructure.db.session import create_database, session_dependency
 
 APP_VERSION = "0.1.0"
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     """Build the FastAPI application."""
     settings = get_settings()
     engine, session_factory = create_database(settings.database_url)
+    normalize_legacy_inventory_units(session_factory)
     if settings.seed_demo_data:
         seed_demo_inventory(session_factory)
 

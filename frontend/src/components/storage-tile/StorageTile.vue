@@ -1,14 +1,27 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import AppIcon from '../AppIcon.vue'
 import FoodToken from '../food-token/FoodToken.vue'
+import LocationBadge from '../LocationBadge.vue'
 import type { InventoryFood } from '../../features/storage/inventory'
 
-defineProps<{
+const props = defineProps<{
   food: InventoryFood
   name: string
   quantityLabel: string
   urgencyLabel?: string
   compact?: boolean
 }>()
+
+const { t } = useI18n()
+
+const locationLabel = computed(() => t(`storage.scopes.${props.food.location}`))
+const ariaLabel = computed(
+  () =>
+    `${props.name}, ${props.quantityLabel}${props.urgencyLabel ? `, ${props.urgencyLabel}` : ''}, ${locationLabel.value}`,
+)
+const urgencyIcon = computed<'clock' | 'tombstone'>(() => (props.food.urgency === 'past' ? 'tombstone' : 'clock'))
 </script>
 
 <template>
@@ -16,25 +29,32 @@ defineProps<{
     class="storage-tile"
     :class="[`storage-tile--${food.urgency}`, { 'storage-tile--compact': compact }]"
     type="button"
-    :aria-label="`${name}, ${quantityLabel}${urgencyLabel ? `, ${urgencyLabel}` : ''}`"
+    :aria-label="ariaLabel"
   >
+    <LocationBadge class="storage-tile__location" :location="food.location" compact />
     <FoodToken :food-key="food.foodKey" :name="name" :size="compact ? 46 : 54" />
     <span class="storage-tile__name">{{ name }}</span>
-    <span class="storage-tile__quantity">{{ quantityLabel }}</span>
-    <span v-if="urgencyLabel" class="storage-tile__urgency">{{ urgencyLabel }}</span>
+    <span class="storage-tile__quantity">
+      <strong>{{ quantityLabel }}</strong>
+    </span>
+    <span v-if="urgencyLabel" class="storage-tile__urgency">
+      <AppIcon :name="urgencyIcon" :size="15" />
+      {{ urgencyLabel }}
+    </span>
   </button>
 </template>
 
 <style scoped>
 .storage-tile {
+  position: relative;
   display: flex;
   min-width: 0;
-  min-height: 132px;
+  min-height: 154px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: var(--space-2) var(--space-1);
+  gap: 4px;
+  padding: 30px var(--space-1) var(--space-2);
   border-radius: var(--radius-lg);
   color: var(--color-urgency-neutral-ink);
   background: var(--color-urgency-neutral);
@@ -53,7 +73,7 @@ defineProps<{
 }
 
 .storage-tile--compact {
-  min-height: 118px;
+  min-height: 132px;
 }
 
 .storage-tile--past {
@@ -116,6 +136,12 @@ defineProps<{
     inset 0 1px 0 rgb(255 255 255 / 0.35);
 }
 
+.storage-tile__location {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+}
+
 .storage-tile__name {
   display: -webkit-box;
   min-height: 2.3em;
@@ -130,13 +156,30 @@ defineProps<{
 
 .storage-tile__quantity,
 .storage-tile__urgency {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: var(--font-size-xs);
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 
+.storage-tile__quantity {
+  max-width: calc(100% - var(--space-2));
+  padding: 3px 5px;
+  border: 1px solid rgb(43 57 45 / 0.12);
+  border-radius: var(--radius-full);
+  background: rgb(255 255 255 / 0.58);
+  white-space: nowrap;
+}
+
+.storage-tile__quantity strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .storage-tile__urgency {
-  margin-top: 2px;
-  font-weight: var(--font-weight-medium);
+  margin-top: 3px;
+  font-weight: var(--font-weight-semibold);
 }
 </style>

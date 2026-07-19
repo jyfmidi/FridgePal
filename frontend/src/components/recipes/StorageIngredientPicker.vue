@@ -2,8 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { InventoryFood, StorageLocation } from '../../features/storage/inventory'
-import AppChip from '../AppChip.vue'
 import FoodToken from '../food-token/FoodToken.vue'
+import LocationFilterBar from '../LocationFilterBar.vue'
 
 type Scope = 'all' | StorageLocation
 
@@ -19,7 +19,6 @@ const emit = defineEmits<{
 }>()
 
 const { t, locale } = useI18n()
-const scopes: Scope[] = ['all', 'fridge', 'freezer', 'pantry']
 const scope = ref<Scope>('all')
 const query = ref('')
 const pendingIds = ref<string[]>([])
@@ -95,11 +94,7 @@ function onKeydown(event: KeyboardEvent) {
         </header>
 
         <div class="ingredient-picker__toolbar">
-          <div class="ingredient-picker__scopes">
-            <AppChip v-for="item in scopes" :key="item" :selected="scope === item" @toggle="scope = item">
-              {{ t(`storage.scopes.${item}`) }}
-            </AppChip>
-          </div>
+          <LocationFilterBar v-model="scope" include-all :label="t('storage.locationFilter')" />
           <label>
             <span class="sr-only">{{ t('storage.search') }}</span>
             <input ref="searchInput" v-model="query" type="search" :placeholder="t('storage.searchPlaceholder')">
@@ -191,12 +186,6 @@ function onKeydown(event: KeyboardEvent) {
   gap: var(--space-2);
   padding: var(--space-3);
   border-bottom: 1px solid var(--color-border);
-}
-
-.ingredient-picker__scopes {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-1);
 }
 
 .ingredient-picker__toolbar input {

@@ -58,7 +58,7 @@ Do not use floating-point arithmetic for persisted quantities or money-like deci
 | `aliases` | Localized normalized search aliases. |
 | `category` | Stable category key. |
 | `visual_key` | Curated Food Token key or deterministic fallback key. |
-| `base_unit` | Natural canonical unit such as `g`, `ml`, or `piece`. |
+| `base_unit` | Exactly one canonical Storage unit: `g`, `kg`, `ml`, `l`, or `piece`. Food-specific count aliases are not persisted. |
 | `rounding_increment` | Smallest sensible UI/storage increment in base unit. |
 | `package_presets` | Optional labeled amounts converted into base unit. |
 | `recommended_storage` | One StorageLocation. |
@@ -207,16 +207,17 @@ Append-only user-readable event for check-in, edit, move, search, recipe save, m
 
 1. Inventory quantity is never negative.
 2. Package labels are input conveniences; persisted quantities use canonical base units.
-3. `stored_on` and `expires_on` are local dates; audit timestamps are UTC.
-4. Expiration urgency is derived from the current local date and never implies food safety.
-5. Storage overview sums active lots by food and active scope; lot identity remains available below overview.
-6. History, source snapshots, cooking recipe snapshots, and transactions are immutable.
-7. Undo uses compensating records.
-8. Search selection contains at most seven ordered foods.
-9. Recipe base amounts are independent of portion multiplier and current inventory.
-10. AI/provider output cannot mutate Storage or bypass validation.
-11. Inventory-changing operations are atomic and idempotent.
-12. Provider outages cannot block core inventory operations.
+3. Storage input units are selected, never free-form. An existing FoodDefinition keeps one base unit across every lot.
+4. `stored_on` and `expires_on` are local dates; audit timestamps are UTC.
+5. Expiration urgency is derived from the current local date and never implies food safety.
+6. Storage overview sums active lots by food and active scope; lot identity remains available below overview.
+7. History, source snapshots, cooking recipe snapshots, and transactions are immutable.
+8. Undo uses compensating records.
+9. Search selection contains at most seven ordered foods.
+10. Recipe base amounts are independent of portion multiplier and current inventory.
+11. AI/provider output cannot mutate Storage or bypass validation.
+12. Inventory-changing operations are atomic and idempotent.
+13. Provider outages cannot block core inventory operations.
 
 ## 5. Date and Urgency Rules
 
@@ -259,7 +260,10 @@ Persist the mapping status. Suggested and unresolved mappings remain editable an
 
 ### 6.2 Conversion rules
 
-- Convert mass-to-mass, volume-to-volume, and count-to-count deterministically.
+- Storage accepts only `g`, `kg`, `ml`, `l`, and `piece`; unit fields are dropdowns rather than free text.
+- Convert `g↔kg` and `ml↔l` exactly with Decimal arithmetic before persistence. `piece` converts only to itself without explicit metadata.
+- A check-in expressed in a compatible unit is stored in the existing FoodDefinition base unit. A same-dimension base-unit edit converts every associated lot within the same transaction.
+- Legacy `head`, `bulb`, `clove`, and `bunch` Storage units normalize one-to-one to `piece`; new writes reject them.
 - Count-to-mass or volume requires explicit FoodDefinition conversion metadata such as average piece weight or density.
 - Never invent a cross-dimension conversion.
 - Round effective values using the target unit's configured increment.
@@ -275,7 +279,7 @@ The transport may be REST, RPC, server actions, or another approved mechanism. T
 | `createFoodDefinition` | Validates minimal custom-food identity and optional shelf-life rules. |
 | `checkInFood` | Validates defaults/overrides and atomically creates InventoryLot plus ActivityEvent. |
 | `getStorageOverview` | Returns Use Soon and scoped aggregates plus stable references to underlying lots. |
-| `updateInventoryLot` | Applies validated edit/move/expiration change with History. |
+| `updateInventoryLot` | Applies validated quantity, canonical-unit dropdown, stored-date, move, or expiration correction with History. A same-dimension unit correction converts the FoodDefinition base unit consistently across its lots and never invents a dimensional conversion. |
 | `previewManualReduction` | Computes lot allocation without mutation. |
 | `commitManualReduction` | Revalidates and atomically creates transactions/event with idempotency. |
 | `saveRescueDraft` | Autosaves ordered selection and intent. |
@@ -325,7 +329,7 @@ Do not ask a model to infer actual inventory from prose.
 
 - allow-listed source URL;
 - title, publisher/domain, retrieval timestamp;
-- optional verified time/yield;
+- optional verified base yield; estimated duration is not a required or displayed source-card field;
 - evidence sufficient to compute selected-food usage;
 - adapter diagnostics that contain no secret or raw page archive.
 
@@ -348,7 +352,7 @@ Reject unknown schema versions, missing required structure, non-allow-listed cit
 - Recipe Source cards expose only verified normalized metadata and the fixed match belt.
 - They do not synthesize `You'll also need …` text from arbitrary pages.
 - The AI Cooking Plan may include its own complete ingredient list because it is a validated normalized recipe.
-- `Use this recipe` launches source analysis; `Open source` never launches AI analysis.
+- `Edit recipe` launches source analysis; `Website` never launches AI analysis.
 
 ### 8.5 Partial analysis
 

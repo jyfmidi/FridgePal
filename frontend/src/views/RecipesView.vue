@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
+import AppPageHeader from '../components/AppPageHeader.vue'
 import FoodToken from '../components/food-token/FoodToken.vue'
 import { useRecipeStore, type SavedRecipe } from '../features/recipes/recipeStore'
 
@@ -34,13 +35,11 @@ function openRecipe(recipe: SavedRecipe) {
 
 <template>
   <div class="recipes-view">
-    <header class="recipes-header">
-      <div>
-        <span>{{ t('app.title') }}</span>
-        <h1>{{ t('recipes.title') }}</h1>
-      </div>
-      <span>{{ t('recipes.savedCount', { count: savedRecipes.length }) }}</span>
-    </header>
+    <AppPageHeader :title="t('recipes.title')">
+      <template #actions>
+        <span class="saved-count">{{ t('recipes.savedCount', { count: savedRecipes.length }) }}</span>
+      </template>
+    </AppPageHeader>
 
     <main class="recipes-content">
       <section class="recipes-intro">
@@ -102,27 +101,15 @@ function openRecipe(recipe: SavedRecipe) {
   margin: 0 auto;
 }
 
-.recipes-header {
-  display: flex;
-  min-height: 82px;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding-top: var(--safe-area-top);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.recipes-header > div > span,
-.recipes-header > span {
-  color: var(--color-muted);
+.saved-count {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  color: var(--color-count-ink);
+  background: var(--color-count-bg);
+  box-shadow: inset 0 0 0 1px var(--color-count-edge);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.recipes-header h1 {
-  font-size: var(--font-size-2xl);
+  white-space: nowrap;
 }
 
 .recipes-content {

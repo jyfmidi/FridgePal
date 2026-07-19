@@ -1,7 +1,18 @@
 import { computed, ref } from 'vue'
 import { fetchStorage, patchLot, persistCheckIn, reduceInventory, discardLot, type ApiLocation, type PatchLotInput, type StorageApiItem } from '../../api/inventory'
 import { i18n } from '../../i18n'
-import { demoInventory, foodCatalog, type InventoryFood, type StorageLocation, type Urgency } from './inventory'
+import {
+  convertInventoryQuantity,
+  demoInventory,
+  foodCatalog,
+  isInventoryUnit,
+  normalizeLegacyInventoryUnit,
+  roundInventoryQuantity,
+  type InventoryFood,
+  type InventoryUnit,
+  type StorageLocation,
+  type Urgency,
+} from './inventory'
 
 const STORAGE_KEY = 'fridgital.inventory.v1'
 
@@ -22,6 +33,7 @@ function loadInventory(): InventoryFood[] {
     if (saved) {
       const foods = JSON.parse(saved) as InventoryFood[]
       for (const food of foods) {
+        food.unit = normalizeLegacyInventoryUnit(food.unit)
         if (food.names && !foodCatalog.some((catalogItem) => catalogItem.nameKey === food.nameKey)) {
           registerCustomFoodNames(food.foodKey, food.names)
         }
@@ -68,19 +80,23 @@ export interface CheckInInput {
   nameKey?: string
   names: { en: string; 'zh-CN': string }
   quantity: number
-  unit: string
+  unit: InventoryUnit
   location: StorageLocation
   storedOn: string
   expiresOn?: string
 }
 
 function checkInLocally(input: CheckInInput) {
+  const existingDefinition = inventory.value.find((food) => food.foodKey === input.foodKey)
+  const baseUnit = existingDefinition && isInventoryUnit(existingDefinition.unit) ? existingDefinition.unit : input.unit
+  const storedQuantity = roundInventoryQuantity(convertInventoryQuantity(input.quantity, input.unit, baseUnit))
   const existing = inventory.value.find(
-    (food) => food.foodKey === input.foodKey && food.location === input.location && food.unit === input.unit,
+    (food) => food.foodKey === input.foodKey && food.location === input.location,
   )
 
   if (existing) {
-    existing.quantity += input.quantity
+    existing.quantity = roundInventoryQuantity(existing.quantity + storedQuantity)
+    existing.unit = baseUnit
     const incomingUrgency = urgencyFromDate(input.expiresOn)
     if (input.expiresOn && urgencyRank[incomingUrgency] > urgencyRank[existing.urgency]) {
       existing.expiresOn = input.expiresOn
@@ -91,6 +107,8 @@ function checkInLocally(input: CheckInInput) {
     inventory.value.push({
       id: `${input.foodKey}-${input.location}-${crypto.randomUUID()}`,
       ...input,
+      quantity: storedQuantity,
+      unit: baseUnit,
       nameKey: input.nameKey ?? registerCustomFoodNames(input.foodKey, input.names),
       urgency: urgencyFromDate(input.expiresOn),
     })
@@ -115,7 +133,7 @@ function mapApiItem(item: StorageApiItem): InventoryFood {
     nameKey: catalogItem ? catalogItem.nameKey : registerCustomFoodNames(item.foodKey, names),
     names,
     quantity: Number(item.quantity),
-    unit: item.unit,
+    unit: normalizeLegacyInventoryUnit(item.unit),
     location: item.location.toLocaleLowerCase() as StorageLocation,
     ...urgencyMap[item.urgency],
   }
@@ -150,7 +168,10 @@ async function checkIn(input: CheckInInput): Promise<boolean> {
 
 export interface UpdateLotInput {
   quantity?: number
+  unit?: InventoryUnit
   location?: StorageLocation
+  /** Required ISO local date when correcting when the lot was stored. */
+  storedOn?: string
   /** ISO date, or null to clear the use-by date. */
   expiresOn?: string | null
 }
@@ -163,13 +184,15 @@ export interface UpdateLotInput {
 async function updateLot(lotId: string, input: UpdateLotInput): Promise<boolean> {
   const patch: PatchLotInput = {}
   if (input.quantity !== undefined) patch.quantity = String(input.quantity)
+  if (input.unit !== undefined) patch.unit = input.unit
   if (input.location !== undefined) patch.location = input.location.toUpperCase() as ApiLocation
+  if (input.storedOn !== undefined) patch.storedOn = input.storedOn
   if (input.expiresOn !== undefined) patch.expiresOn = input.expiresOn
   await patchLot(lotId, patch, crypto.randomUUID())
   return hydrateFromServer()
 }
 
-async function reduceStock(input: { foodKey: string; location: StorageLocation; amount: number; unit: string }): Promise<boolean> {
+async function reduceStock(input: { foodKey: string; location: StorageLocation; amount: number; unit: InventoryUnit }): Promise<boolean> {
   await reduceInventory(
     {
       foodKey: input.foodKey,

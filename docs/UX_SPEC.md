@@ -37,7 +37,7 @@ flowchart TD
     S --> R["Rescue"]
     R --> P["Choose Foods"]
     R --> RS["Recipe Results"]
-    RS --> EXT["Open source"]
+    RS --> EXT["Website"]
     RS --> RE["Recipe Editor"]
     REC["Recipes"] --> RE
     RE --> REC
@@ -82,22 +82,26 @@ flowchart TD
 ### `UI-CMP-02` — Storage Tile
 
 - Shows Food Token/monogram, localized name, one aggregate quantity, unit, and urgency text where relevant.
+- Shows a persistent location badge with both a recognizable icon and localized `Fridge`, `Freezer`, or `Pantry` text. Location never relies on an icon or color alone.
+- Fridge uses fresh green, Freezer uses icy light blue, and Pantry uses warm sand. The same icon/color/text combination appears in badges and every location filter, and location colors never communicate expiry urgency.
 - Uses full-tile urgency surface, not a tiny corner indicator.
 - Never shows `×2`, `×3`, or another lot-count badge.
-- Food name supports two lines; quantity remains visually secondary to identity but readable.
+- Food name supports two lines. Quantity always includes a unit and uses a compact value treatment; urgency uses a separate time-state treatment so adjacent numbers cannot be mistaken for one value.
 
 ### `UI-CMP-03` — Seven-Slot Selection Rail
 
-- Exactly seven fixed positions in one compact dark inset rail.
-- Selected slots show bright full-color Food Tokens; empty slots show clear `+` actions.
+- Exactly seven fixed positions in one compact neutral tray. The same tray language continues through the Results context and Recipe Match Belt.
+- Selected slots show full-color Food Tokens on white surfaces with clear position markers; empty slots show clear `+` actions.
+- Primary blue appears only for selection/action feedback, not as a decorative tray background.
 - Selection order is stable for the current RescueSession.
 - Slot controls expose food name and position to assistive technology.
 
 ### `UI-CMP-04` — Seven-Slot Recipe Match Belt
 
 - Reuses the Rescue order for every source result.
+- Uses the same neutral tray, white slot, position marker, radius, and edge language as the Rescue selection rail; never switch to a navy or unrelated dark container.
 - Used: full color, bright surface, active edge, slight elevation.
-- Not used: same icon and position, desaturated/dark-veiled surface, recessed edge.
+- Not used: same icon and position, desaturated/recessed surface. Do not add duplicate check or minus marks; depth, desaturation, and accessible labels carry the state without relying on color alone.
 - Never split into Uses/Not used, reorder tokens, or show a fraction, percentage, coverage score, or match count.
 - Accessible labels state `{food}, used in this recipe` or `{food}, not used in this recipe`.
 
@@ -107,6 +111,18 @@ flowchart TD
 - Recipe photography is optional enhancement data and never required for layout completeness.
 - Do not use meaningless publisher-letter avatars.
 
+### `UI-CMP-06` — Application Headers
+
+- Storage, Rescue, Recipes, and History share one compact header with identical Fridgital wordmark, centered page title, spacing, and sticky behavior.
+- Focused task routes share one task header with Back, centered task title, and an optional right-side action or state.
+- Task headers omit the Fridgital wordmark so brand identity does not compete with Back, title, or save state.
+
+### `UI-CMP-07` — Functional Iconography
+
+- Pair concise text with a consistent line icon on consequential actions and dense field groups where the icon improves recognition.
+- Icons reinforce meaning such as unit, date, location, external website, edit, ingredients, instructions, save, or Storage update; they never replace localized labels. Quantity uses its explicit localized label and numeric treatment rather than an abstract icon.
+- Do not add icons as decoration, repeat the same ambiguous symbol for unrelated actions, or rely on icon shape alone.
+
 ## 5. Screen Contracts
 
 ### `UI-01` — Storage
@@ -115,7 +131,7 @@ Required top-to-bottom order:
 
 1. compact Fridgital identity, Search, and Add Food;
 2. complete `Use soon` section;
-3. `All / Fridge / Freezer / Pantry` scope control;
+3. complete-inventory title and count, then the `All / Fridge / Freezer / Pantry` scope control on its own row;
 4. complete scoped inventory grid;
 5. primary navigation.
 
@@ -125,7 +141,7 @@ Use Soon contains every active food inside the attention window and fits the sev
 
 | Level | Copy | Starting surface role |
 |---:|---|---|
-| 5 | `Past date` | Strong coral-red, warning symbol, explicit text; no unsafe claim. |
+| 5 | `Past date` | Strong coral-red, a small tombstone icon for light humor, and explicit text; no unsafe or unusable claim. |
 | 4 | `Today` | Saturated coral. |
 | 3 | `1–2 days` | Amber-orange. |
 | 2 | `3–5 days` | Soft yellow. |
@@ -140,18 +156,19 @@ Required controls:
 1. Food Library typeahead;
 2. recent/common Food Token suggestions;
 3. location segmented control;
-4. quantity stepper, adaptive unit, and common package presets;
+4. direct numeric quantity field and a unit dropdown limited to `g`, `kg`, `ml`, `l`, and `piece`;
 5. `Stored today` default with date control;
 6. suggested expiration and source label;
 7. relative expiration shortcuts plus date picker;
 8. explicit `Save food`.
 
-Selecting a suggestion populates the controls immediately. Custom-food creation asks only for missing identity/default fields. Use compact chips, steppers, segmented controls, and date pickers instead of a long conventional form.
+Selecting a suggestion populates the controls immediately. Custom-food creation asks only for missing identity/default fields. Compatible mass and volume units convert exactly into the food's single base unit; food-specific count words never appear. Use compact selectors, direct fields, segmented controls, and date pickers instead of a long conventional form.
 
 ### `UI-03` — Ingredient Detail and Manual Reduction
 
 - Show aggregate quantity first and lot details second.
-- Actions: edit quantity, move location, edit expiration, `Reduce stock`, discard, and History.
+- The primary edit surface is a compact direct-entry grid for quantity, a canonical unit dropdown, stored date, and use-by date. Do not add quantity steppers, free-form unit entry, an abstract quantity icon, or change-effect prose.
+- Actions: correct quantity/unit, edit stored date, move location, edit expiration, `Reduce stock`, discard, and History.
 - `Reduce stock` asks for actual amount, previews the new aggregate, and requires confirmation.
 - Success updates the affected tile and shows `Storage updated · Undo`.
 
@@ -163,10 +180,9 @@ Required order:
 2. headline `What should we use up?`;
 3. seven-slot selection rail;
 4. selected count and `Edit foods`;
-5. optional collapsed Preferences;
-6. primary `Find meal ideas`;
-7. compact recent-search continuation;
-8. navigation.
+5. primary `Find meal ideas`;
+6. compact recent-search continuation;
+7. navigation.
 
 No user-facing copy contains `Combination`, `Query`, `Twin`, `Prompt`, or `Capsule` as a workflow concept.
 
@@ -185,36 +201,36 @@ No user-facing copy contains `Combination`, `Query`, `Twin`, `Prompt`, or `Capsu
 
 Required order:
 
-1. header and `Change foods`;
+1. header and concise icon-plus-label `Change`;
 2. sticky compact `Using` strip;
 3. `Recipe sources` list;
 4. `AI Cooking Plan`;
 5. Rescue-active navigation.
 
-Every source card contains verified title/domain, optional verified time/yield, match belt, `Open source`, and `Use this recipe`. Do not add recipe photography, avatars, match metrics, or speculative missing-ingredient prose.
+Every source card contains verified title/domain, the neutral seven-food match belt, icon-plus-label `Website`, and icon-plus-label `Edit recipe`. The section explains once that results come from different websites and are organized by AI, so details may be incomplete. Do not show estimated duration, require yield, or add recipe photography, avatars, match metrics, duplicate check/minus belt marks, or speculative missing-ingredient prose.
 
-The AI Cooking Plan is visually important and already contains base yield, ingredient names/amounts/units, steps preview, source count, and `Edit recipe`. Portion selection does not occur before this recipe content exists.
+The AI Cooking Plan is visually important and already contains base yield, ingredient names/amounts/units, steps preview, source count, and the same `Edit recipe` action. Portion selection does not occur before this recipe content exists.
 
 ### `UI-07` — Recipe Editor
 
 Required order:
 
 1. Back, `Edit recipe`, and unambiguous draft/saved state;
-2. provenance and safe `Open source` where applicable;
+2. provenance and safe icon-plus-label `Website` where applicable;
 3. inline editable Name;
 4. inline editable Description;
-5. original/base yield;
-6. `0.5× / Original / Custom` portion controls and effective yield;
+5. full-recipe serving count using plain-language copy such as `Recipe serves`;
+6. `0.5× / Full recipe / Custom` portion controls and the portion being prepared;
 7. two-column ingredient grid;
 8. `+ Add from storage` tile;
-9. readable instructions;
-10. sticky Save/Save changes and `Cook this`.
+9. readable instructions with clear Add step and Remove step actions;
+10. sticky `Save to Recipes`/`Update saved recipe` and `Review use & update Storage` actions.
 
-Use `Draft saved` for internal autosave; reserve `Saved` for a SavedRecipe. Amount/unit editing opens compact controls rather than a separate large form. Recipe identity remains complete without a hero image.
+Internal draft persistence is a quiet state, not a competing primary action. Reserve `Saved to Recipes` for a SavedRecipe. Amount/unit editing opens compact controls rather than a separate large form. Recipe identity remains complete without a hero image.
 
 ### `UI-08` — Add Ingredients From Storage
 
-- Full-screen Storage multi-select with location scopes and Search.
+- Responsive Storage multi-select: full-screen on mobile and a large centered modal on desktop, with location scopes and Search.
 - No seven-item cap or `x of 7` copy.
 - Foods already present show `In recipe` and cannot be duplicated.
 - Current selections show checks and one `Add {n} ingredients` action.
@@ -257,7 +273,10 @@ These values are implementation starting points, not pixel samples from generate
 | `ink` | `#0B1734` | Primary text and dark structure. |
 | `muted` | `#667085` | Secondary copy. |
 | `primary` | `#0B5DEB` | Main action and selected states. |
-| `rail` | `#0C2542` | Rescue and recipe match rails. |
+| `selection-tray` | `#E8EDF3` | Neutral Rescue and Results selection context. |
+| `location-fridge` | fresh green pair | Fridge badges and filters. |
+| `location-freezer` | icy light blue pair | Freezer badges and filters. |
+| `location-pantry` | warm sand pair | Pantry badge only. |
 | `past-date` | `#E86560` | Strong date-passed surface. |
 | `today` | `#FF9B86` | Today surface. |
 | `soon-1-2` | `#FFB15B` | One-to-two-day surface. |
@@ -266,7 +285,7 @@ These values are implementation starting points, not pixel samples from generate
 
 - Use a modern sans-serif with strong legibility and system fallbacks.
 - Default radii are approximately 8–12 px; avoid pill-shaping every surface.
-- Shadows are restrained and functional. Use inset/recessed state on match rails and light elevation for selected tokens.
+- Shadows are restrained and functional. Use inset/recessed state on neutral match slots and light elevation for selected tokens.
 - Light theme is P0; define semantic tokens so dark theme can be added later.
 
 ## 7. State Matrix
@@ -278,7 +297,7 @@ These values are implementation starting points, not pixel samples from generate
 | Rescue | Preserve selected rail. | Empty slots and clear `+` affordance. | Search failure keeps selection and offers Retry. | Reopened results show current-Storage change notice without rewriting snapshot. | Results route retains ordered `Using` strip. |
 | Sources | Show source discovery progress. | Explain no grounded source and offer selection adjustment. | Preserve successful sources if some fail. | Mark unavailable sources without deleting provenance. | Announce results without excessive live-region chatter. |
 | AI Plan | Separate plan-preparation state. | Not applicable after valid sources unless generation declined. | Sources remain usable; show Retry AI Plan. | Availability recalculates on editor/cook open. | Plan displays quantities before Edit. |
-| Recipe Editor | Preserve autosaved draft. | Name may be blank only for a new manual draft. | Missing values show `Needs review`; save failure retains draft and Retry. | Refresh availability only; never rewrite base recipe values. | Distinguish `Draft saved` from `Saved`. |
+| Recipe Editor | Preserve autosaved draft. | Name may be blank only for a new manual draft. Instructions may be empty while editing. | Missing values show `Needs review`; save failure retains draft and Retry. | Refresh availability only; never rewrite base recipe values. | Distinguish local persistence from `Saved to Recipes`. |
 | Reconciliation | Prefilled review remains visible during submit. | Permit zero selected only after explicit cancel/return. | Transaction error remains in review; no partial mutation. | Recalculate and require reconfirmation. | Close, update Storage, show Undo. |
 
 ## 8. Motion and Feedback

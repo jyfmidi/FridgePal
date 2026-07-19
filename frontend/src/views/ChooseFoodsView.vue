@@ -2,7 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import AppChip from '../components/AppChip.vue'
+import AppTaskHeader from '../components/AppTaskHeader.vue'
+import LocationFilterBar from '../components/LocationFilterBar.vue'
 import FoodToken from '../components/food-token/FoodToken.vue'
 import SelectionRail from '../components/rescue/SelectionRail.vue'
 import { useRescueStore } from '../features/rescue/rescueStore'
@@ -15,7 +16,6 @@ const { t, locale } = useI18n()
 const router = useRouter()
 const scope = ref<Scope>('all')
 const query = ref('')
-const scopes: Scope[] = ['all', 'fridge', 'freezer', 'pantry']
 const { inventory, hydrateFromServer } = useInventoryStore()
 const { selectedIds, selectedFoods, isAtCapacity, toggleFood, removeFood } = useRescueStore(inventory)
 
@@ -38,22 +38,18 @@ function isSelected(food: InventoryFood) {
 
 <template>
   <div class="choose-foods-view">
-    <header class="picker-header">
-      <button type="button" :aria-label="t('common.back')" @click="router.back()">‹</button>
-      <h1>{{ t('rescue.chooseFoods') }}</h1>
-      <button type="button" @click="router.push('/rescue')">{{ t('common.done') }}</button>
-    </header>
+    <AppTaskHeader :title="t('rescue.chooseFoods')" :back-label="t('common.back')" @back="router.back()">
+      <template #action>
+        <button type="button" @click="router.push('/rescue')">{{ t('common.done') }}</button>
+      </template>
+    </AppTaskHeader>
 
     <main class="picker-content">
       <SelectionRail :foods="selectedFoods" editable @remove="removeFood" />
       <strong class="picker-count">{{ t('rescue.ofSeven', { count: selectedIds.length }) }}</strong>
 
       <div class="picker-toolbar">
-        <div class="picker-scopes">
-          <AppChip v-for="item in scopes" :key="item" :selected="scope === item" @toggle="scope = item">
-            {{ t(`storage.scopes.${item}`) }}
-          </AppChip>
-        </div>
+        <LocationFilterBar v-model="scope" include-all :label="t('storage.locationFilter')" />
         <label>
           <span class="sr-only">{{ t('storage.search') }}</span>
           <input v-model="query" type="search" :placeholder="t('storage.searchPlaceholder')">
@@ -95,37 +91,6 @@ function isSelected(food: InventoryFood) {
   margin: 0 auto;
 }
 
-.picker-header {
-  position: sticky;
-  z-index: var(--z-sticky);
-  top: 0;
-  display: grid;
-  min-height: 64px;
-  grid-template-columns: 72px 1fr 72px;
-  align-items: center;
-  padding-top: var(--safe-area-top);
-  background: var(--color-header-bg);
-  border-bottom: 1px solid var(--color-border);
-  text-align: center;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-
-.picker-header h1 {
-  font-size: var(--font-size-lg);
-}
-
-.picker-header button {
-  min-height: var(--tap-target-min);
-  color: var(--color-primary);
-  font-weight: var(--font-weight-semibold);
-}
-
-.picker-header button:first-child {
-  justify-self: start;
-  font-size: 2rem;
-}
-
 .picker-content {
   display: grid;
   gap: var(--space-3);
@@ -140,12 +105,6 @@ function isSelected(food: InventoryFood) {
   display: grid;
   gap: var(--space-2);
   margin-top: var(--space-2);
-}
-
-.picker-scopes {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-1);
 }
 
 .picker-toolbar input {

@@ -62,9 +62,9 @@ const urgencyScale = computed(() => [
     </section>
 
     <section class="dev-tokens__section">
-      <h2>Icon registry · dark rail</h2>
-      <div class="dev-tokens__grid dev-tokens__grid--rail">
-        <figure v-for="key in keys" :key="key" class="dev-tokens__cell dev-tokens__cell--rail">
+      <h2>Icon registry · neutral selection tray</h2>
+      <div class="dev-tokens__grid dev-tokens__grid--tray">
+        <figure v-for="key in keys" :key="key" class="dev-tokens__cell">
           <FoodToken :food-key="key" :name="key" :size="48" />
           <figcaption>{{ key }}</figcaption>
         </figure>
@@ -87,7 +87,7 @@ const urgencyScale = computed(() => [
         <div class="dev-tokens__size-row">
           <FoodToken v-for="name in monogramSamples" :key="name" :name="name" :size="48" />
         </div>
-        <div class="dev-tokens__size-row dev-tokens__size-row--rail">
+        <div class="dev-tokens__size-row dev-tokens__size-row--tray">
           <FoodToken v-for="name in monogramSamples" :key="name" :name="name" :size="48" />
         </div>
         <p class="dev-tokens__note">{{ monogramSamples.join(' · ') }}</p>
@@ -165,9 +165,9 @@ const urgencyScale = computed(() => [
   box-shadow: var(--shadow-sm);
 }
 
-.dev-tokens__grid--rail {
-  background: var(--color-rail);
-  box-shadow: var(--shadow-inset-rail);
+.dev-tokens__grid--tray {
+  background: var(--color-selection-tray);
+  box-shadow: inset 0 0 0 1px var(--color-selection-edge);
 }
 
 .dev-tokens__cell {
@@ -177,10 +177,6 @@ const urgencyScale = computed(() => [
   gap: var(--space-1);
   font-size: var(--font-size-xs);
   color: var(--color-muted);
-}
-
-.dev-tokens__cell--rail {
-  color: var(--color-on-rail-muted);
 }
 
 .dev-tokens__sizes {
@@ -199,9 +195,9 @@ const urgencyScale = computed(() => [
   box-shadow: var(--shadow-sm);
 }
 
-.dev-tokens__size-row--rail {
-  background: var(--color-rail);
-  box-shadow: var(--shadow-inset-rail);
+.dev-tokens__size-row--tray {
+  background: var(--color-selection-tray);
+  box-shadow: inset 0 0 0 1px var(--color-selection-edge);
 }
 
 .dev-tokens__size-label {

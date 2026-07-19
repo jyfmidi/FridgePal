@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
+import AppIcon from '../components/AppIcon.vue'
+import AppTaskHeader from '../components/AppTaskHeader.vue'
 import FoodToken from '../components/food-token/FoodToken.vue'
 import CookingSheet from '../components/recipes/CookingSheet.vue'
 import StorageIngredientPicker from '../components/recipes/StorageIngredientPicker.vue'
 import { buildPlanIngredients, recipeSources } from '../features/recipes/fixtures'
-import { useRecipeStore, type RecipeDraftData, type RecipeIngredientDraft } from '../features/recipes/recipeStore'
+import { normalizeRecipeDraftData, useRecipeStore, type RecipeDraftData, type RecipeIngredientDraft } from '../features/recipes/recipeStore'
 import { useRescueStore } from '../features/rescue/rescueStore'
 import { useInventoryStore } from '../features/storage/inventoryStore'
 
@@ -55,7 +57,7 @@ function loadDraft(): RecipeDraftData {
   if (openedSavedRecipe.value) return defaultDraft()
   try {
     const saved = localStorage.getItem(draftKey.value)
-    if (saved) return JSON.parse(saved) as RecipeDraftData
+    if (saved) return normalizeRecipeDraftData(JSON.parse(saved) as RecipeDraftData)
   } catch {
     // A malformed local draft falls back to a clean normalized fixture draft.
   }
@@ -77,6 +79,7 @@ const savedRecipeId = ref(openedSavedRecipe.value?.id)
 const cookOpen = ref(false)
 const notice = ref('')
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
+let draftTimer: ReturnType<typeof setTimeout> | undefined
 
 function showNotice(message: string) {
   notice.value = message
@@ -134,6 +137,16 @@ function addIngredients(foodIds: string[]) {
   closePicker()
 }
 
+function addInstruction() {
+  instructions.value.push('')
+  markDirty()
+}
+
+function removeInstruction(index: number) {
+  instructions.value.splice(index, 1)
+  markDirty()
+}
+
 function closePicker() {
   pickerOpen.value = false
   void nextTick(() => addStorageButton.value?.focus())
@@ -146,6 +159,8 @@ function ingredientFood(foodId: string) {
 function markDirty() {
   draftSaved.value = false
   recipeSaved.value = false
+  clearTimeout(draftTimer)
+  draftTimer = setTimeout(persistDraftLocally, 450)
 }
 
 function currentDraft(): RecipeDraftData {
@@ -159,13 +174,14 @@ function currentDraft(): RecipeDraftData {
   }
 }
 
-function saveDraft() {
+function persistDraftLocally() {
   const draft = currentDraft()
   localStorage.setItem(draftKey.value, JSON.stringify(draft))
   draftSaved.value = true
 }
 
 function saveToRecipes() {
+  clearTimeout(draftTimer)
   const stored = saveRecipe({
     id: savedRecipeId.value,
     originType: source.value ? 'source' : 'ai-plan',
@@ -180,6 +196,12 @@ function saveToRecipes() {
   localStorage.setItem(draftKey.value, JSON.stringify(currentDraft()))
   void router.replace({ query: { ...route.query, savedId: stored.id } })
 }
+
+onBeforeUnmount(() => {
+  clearTimeout(draftTimer)
+  clearTimeout(noticeTimer)
+  if (!recipeSaved.value) persistDraftLocally()
+})
 
 function startCooking() {
   // FR-RCP-001: an unsaved draft is auto-saved through the normal save path
@@ -197,11 +219,12 @@ function onCooked() {
 
 <template>
   <div class="editor-view">
-    <header class="editor-header">
-      <button type="button" :aria-label="t('common.back')" @click="router.back()">←</button>
-      <strong>{{ t('recipeEditor.title') }}</strong>
-      <span>{{ t(recipeSaved ? 'recipeEditor.saved' : draftSaved ? 'recipeEditor.draftSaved' : 'recipeEditor.draft') }}</span>
-    </header>
+    <AppTaskHeader
+      :title="t('recipeEditor.title')"
+      :back-label="t('common.back')"
+      :status="t(recipeSaved ? 'recipeEditor.saved' : draftSaved ? 'recipeEditor.savedLocally' : 'recipeEditor.editing')"
+      @back="router.back()"
+    />
 
     <div v-if="notice" class="notice" role="status">
       <span>{{ notice }}</span>
@@ -214,7 +237,10 @@ function onCooked() {
           <span>{{ t('recipeEditor.provenance') }}</span>
           <strong>{{ source ? source.publisher : t('recipeEditor.aiProvenance', { count: recipeSources.length }) }}</strong>
         </div>
-        <a v-if="source" :href="source.url" target="_blank" rel="noopener noreferrer">{{ t('recipeResults.openSource') }} ↗</a>
+        <a v-if="source" :href="source.url" target="_blank" rel="noopener noreferrer">
+          <AppIcon name="globe" :size="18" />
+          {{ t('recipeResults.website') }}
+        </a>
       </section>
 
       <section class="identity-fields">
@@ -230,13 +256,13 @@ function onCooked() {
 
       <section class="portion-section">
         <div class="yield-summary">
-          <div><span>{{ t('recipeEditor.originalYield') }}</span><strong>{{ baseYield }}</strong></div>
-          <div><span>{{ t('recipeEditor.effectiveYield') }}</span><strong>{{ effectiveYield }}</strong></div>
+          <div><span>{{ t('recipeEditor.recipeServes') }}</span><strong>{{ baseYield }}</strong></div>
+          <div><span>{{ t('recipeEditor.thisPortion') }}</span><strong>{{ effectiveYield }}</strong></div>
         </div>
-        <h2>{{ t('recipeEditor.portions') }}</h2>
+        <h2 class="section-title"><AppIcon name="portions" :size="21" />{{ t('recipeEditor.portions') }}</h2>
         <div class="portion-controls">
           <button type="button" :class="{ active: multiplier === 0.5 }" @click="chooseMultiplier(0.5)">{{ t('recipeEditor.half') }}</button>
-          <button type="button" :class="{ active: multiplier === 1 }" @click="chooseMultiplier(1)">{{ t('recipeEditor.original') }}</button>
+          <button type="button" :class="{ active: multiplier === 1 }" @click="chooseMultiplier(1)">{{ t('recipeEditor.fullRecipe') }}</button>
           <label>
             <span>{{ t('recipeEditor.custom') }}</span>
             <input v-model.number="multiplier" type="number" min="0.1" step="0.1" :aria-label="t('recipeEditor.multiplier')" @input="markDirty">
@@ -245,7 +271,7 @@ function onCooked() {
       </section>
 
       <section class="ingredient-section">
-        <h2>{{ t('recipeEditor.ingredients') }}</h2>
+        <h2 class="section-title"><AppIcon name="ingredients" :size="21" />{{ t('recipeEditor.ingredients') }}</h2>
         <div class="editor-ingredients stagger-in">
           <label v-for="(ingredient, index) in ingredients" :key="ingredient.id">
             <span class="ingredient-identity">
@@ -259,29 +285,44 @@ function onCooked() {
             <input :value="scaledAmount(ingredient.baseAmount)" :aria-label="`${t(ingredient.nameKey)} ${t('recipeEditor.amount')}`" @input="updateEffectiveAmount(index, ($event.target as HTMLInputElement).value)">
           </label>
           <button ref="addStorageButton" class="add-storage-tile" type="button" @click="pickerOpen = true">
-            <span aria-hidden="true">＋</span>
+            <AppIcon name="add" :size="20" />
             {{ t('recipeEditor.addFromStorage') }}
           </button>
         </div>
       </section>
 
       <section class="instruction-section">
-        <h2>{{ t('recipeEditor.instructions') }}</h2>
-        <label v-for="(_, index) in instructions" :key="index">
-          <span>{{ index + 1 }}</span>
-          <textarea v-model="instructions[index]" rows="3" @input="markDirty" />
-        </label>
+        <div class="instruction-section__header">
+          <h2 class="section-title"><AppIcon name="instructions" :size="21" />{{ t('recipeEditor.instructions') }}</h2>
+          <button class="add-step" type="button" @click="addInstruction">
+            <AppIcon name="add" :size="18" />{{ t('recipeEditor.addStep') }}
+          </button>
+        </div>
+        <p v-if="instructions.length === 0" class="instruction-empty">{{ t('recipeEditor.emptyInstructions') }}</p>
+        <div v-for="(_, index) in instructions" :key="index" class="instruction-row">
+          <span class="instruction-row__number">{{ index + 1 }}</span>
+          <textarea
+            v-model="instructions[index]"
+            rows="3"
+            :aria-label="t('recipeEditor.stepLabel', { number: index + 1 })"
+            @input="markDirty"
+          />
+          <button class="remove-step" type="button" :aria-label="t('recipeEditor.removeStep', { number: index + 1 })" @click="removeInstruction(index)">
+            <AppIcon name="remove" :size="18" />
+          </button>
+        </div>
       </section>
 
       <footer class="editor-footer sheet-up">
-        <p>{{ recipeSaved ? t('recipeEditor.savedToRecipes') : draftSaved ? t('recipeEditor.savedNotice') : t('recipeEditor.saveHint') }}</p>
+        <p>{{ t('recipeEditor.storageActionHint') }}</p>
         <div class="editor-footer__actions">
-          <AppButton variant="secondary" :disabled="name.trim().length === 0" @click="saveDraft">{{ t('recipeEditor.saveDraft') }}</AppButton>
           <AppButton variant="secondary" :disabled="name.trim().length === 0" @click="saveToRecipes">
-            {{ t(savedRecipeId ? 'recipeEditor.saveChanges' : 'recipeEditor.saveRecipe') }}
+            <AppIcon name="save" :size="18" />
+            {{ t(savedRecipeId ? 'recipeEditor.updateSavedRecipe' : 'recipeEditor.saveToRecipes') }}
           </AppButton>
           <AppButton class="editor-footer__cook" :disabled="name.trim().length === 0" @click="startCooking">
-            {{ t('recipeEditor.cookThis') }}
+            <AppIcon name="storage" :size="18" />
+            {{ t('recipeEditor.reviewAndUpdateStorage') }}
           </AppButton>
         </div>
       </footer>
@@ -314,34 +355,6 @@ function onCooked() {
   margin: 0 auto;
 }
 
-.editor-header {
-  position: sticky;
-  z-index: var(--z-sticky);
-  top: 0;
-  display: grid;
-  min-height: 64px;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  padding-top: var(--safe-area-top);
-  background: var(--color-header-bg);
-  border-bottom: 1px solid var(--color-border);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-}
-
-.editor-header button {
-  min-height: var(--tap-target-min);
-  justify-self: start;
-  color: var(--color-primary);
-  font-size: var(--font-size-xl);
-}
-
-.editor-header span {
-  justify-self: end;
-  color: var(--color-muted);
-  font-size: var(--font-size-sm);
-}
-
 .editor-content {
   display: grid;
   gap: var(--space-6);
@@ -363,6 +376,15 @@ function onCooked() {
   background: var(--color-primary-softer);
 }
 
+.provenance a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap-target-min);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
 .provenance > div,
 .yield-summary > div {
   display: grid;
@@ -382,6 +404,17 @@ function onCooked() {
 .instruction-section {
   display: grid;
   gap: var(--space-3);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-lg);
+}
+
+.section-title :deep(.app-icon) {
+  color: var(--color-primary);
 }
 
 .identity-fields label {
@@ -412,8 +445,9 @@ textarea {
 .yield-summary {
   padding: var(--space-4);
   border-radius: var(--radius-lg);
-  background: var(--color-rail);
-  color: var(--color-on-rail);
+  color: var(--color-ink);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
 .yield-summary > div:last-child {
@@ -421,7 +455,7 @@ textarea {
 }
 
 .yield-summary span {
-  color: var(--color-on-rail-muted);
+  color: var(--color-muted);
 }
 
 .yield-summary strong {
@@ -505,22 +539,67 @@ textarea {
   font-weight: var(--font-weight-semibold);
 }
 
-.instruction-section label {
+.instruction-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.add-step {
+  display: inline-flex;
+  min-height: var(--tap-target-min);
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.instruction-row {
   display: grid;
-  grid-template-columns: 30px 1fr;
+  grid-template-columns: 30px 1fr var(--tap-target-min);
   align-items: start;
   gap: var(--space-2);
 }
 
-.instruction-section label > span {
+.instruction-row__number {
   display: grid;
   width: 30px;
   height: 30px;
   place-items: center;
   border-radius: var(--radius-full);
-  color: var(--color-on-rail);
-  background: var(--color-rail);
+  color: var(--color-primary-hover);
+  background: var(--color-primary-soft);
   font-size: var(--font-size-sm);
+}
+
+.remove-step {
+  display: grid;
+  width: var(--tap-target-min);
+  height: var(--tap-target-min);
+  place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--color-danger-ink);
+  background: var(--color-danger-soft);
+}
+
+.remove-step:hover {
+  background: var(--color-danger-edge);
+}
+
+.instruction-empty {
+  padding: var(--space-4);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+  text-align: center;
 }
 
 .editor-footer {
@@ -534,7 +613,8 @@ textarea {
 }
 
 .editor-footer__actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(230px, 1fr);
   gap: var(--space-2);
 }
 
@@ -570,11 +650,12 @@ textarea {
 
   .editor-footer__actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    grid-template-columns: 1fr;
   }
 
   .editor-footer__cook {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .portion-controls {

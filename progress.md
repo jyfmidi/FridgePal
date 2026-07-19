@@ -1,0 +1,38 @@
+# Progress
+
+## 2026-07-19
+- Confirmed Design B remains the approved direction: one semantic visual system across the app.
+- Started the editor clarity pass.
+- Chose a minimal verification strategy: mutation-path contract coverage plus static/build checks and focused browser inspection; no Playwright work.
+- Re-read Product Requirements and Domain/AI Contracts before changing application code.
+- Re-read UX Specification and Implementation Plan, then inspected the current backend mutation transaction and both editor views.
+- RED confirmed: the focused PATCH-lot test failed because `unit` remained `piece`; `storedOn` was also not part of the current request model.
+- GREEN confirmed: the new focused mutation contract passes after extending the request and transactional edit service.
+- Audited the unit vocabulary and demo fixtures; identified all user-visible culinary-specific count units that need normalization.
+- Implemented the backend/frontend edit contract, direct Food Edit form, step add/remove, simplified recipe actions, general-unit fixtures, semantic icons, and distinct Freezer color.
+- `git diff --check` and all 7 focused inventory-mutation integration tests pass. The first frontend check attempt was blocked by a broken system Node/ICU link, not project code.
+- Frontend ESLint and vue-tsc pass when invoked directly with the available NVM Node 22 runtime.
+- Visually inspected Storage at the active mobile viewport; location badge separation and label readability are good.
+- Visually inspected the Garlic editor and fixed route scroll restoration discovered during the check.
+- Inspected the complete Recipe Editor at mobile width and interactively verified add/remove instructions.
+- Final verification passed: backend Ruff, mypy, and all 7 inventory mutation integration tests; frontend ESLint, vue-tsc, and Vite production build (128 modules); `git diff --check`.
+- Kept the live Recipe Editor tab open for user review.
+- Started Meal Ideas source-trust and seven-food visual-continuity pass.
+- Updated canonical requirements/UX/contracts, unified seven-food visuals, removed source timing metadata, added the AI-organized incompleteness notice, and aligned both editor entry actions.
+- Final Meal Ideas verification passed: ESLint, vue-tsc, Vite production build (128 modules), `git diff --check`, old-copy/token residue scan, and mobile browser inspection.
+- Kept the live Meal Ideas tab open for user review.
+- Started the source-action and Storage information-hierarchy refinement pass.
+- Confirmed the safe humor boundary: use a tombstone icon for `Past date` while retaining neutral date-status wording.
+- Removed redundant source-belt state marks; shortened and iconized Website/Edit recipe/Change actions.
+- Added reusable LocationIcon and LocationFilterBar components, applied them across Storage, Rescue picking, Add Food, Food Edit, and Recipe ingredient picking, and reassigned icy blue to Freezer.
+- Separated Storage quantity, urgency, and inventory-count hierarchy; piece quantities now display an explicit unit.
+- Updated Product Requirements, Domain/AI Contracts, and UX Specification to own the refined labels and visual semantics.
+- ESLint, vue-tsc, production build (134 modules), and `git diff --check` pass; focused mobile browser checks passed for Recipe Sources and Storage location filtering.
+- Restored the live Storage view to the complete `All` scope and kept it open for review.
+- User approved the strict canonical-unit design: dropdown-only `g/kg/ml/l/piece`, exact same-dimension conversion, legacy count aliases normalized to `piece`, and no quantity icon.
+- Added the approved design and implementation plan under `docs/plans/` and started the RED contract-test phase.
+- RED confirmed all four missing contracts, then GREEN confirmed exact mass/volume check-in conversion, special-unit rejection, transactional all-lot unit conversion, legacy normalization, and the existing unit/date audit path.
+- Replaced Add Food, aggregate Food Edit, and per-lot unit text fields with canonical dropdowns; compatible unit selection converts the displayed quantity instead of relabeling it.
+- Removed the scale-like quantity icon from tiles and edit fields, retaining explicit Quantity copy and the distinct value capsule.
+- Browser QA confirmed legacy-unit migration, singular/plural `piece(s)` copy, dropdown-only Add Food and Food Edit, and live `g↔kg` draft conversion. The QA interactions did not save or mutate inventory.
+- Final verification passed: all 144 backend tests, Ruff, mypy, frontend ESLint, vue-tsc, Vite production build (134 modules), and `git diff --check`.

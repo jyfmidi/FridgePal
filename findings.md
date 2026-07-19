@@ -1,0 +1,52 @@
+# Findings
+
+- The current PATCH lot contract supports only quantity, location, and use-by date.
+- `InventoryLot` already stores `unit` and `storedOn`, so the requested UI requires a real mutation-contract extension rather than client-only fields.
+- The current Food Edit primary form uses stepper buttons and an effect hint; both conflict with the requested direct-entry interaction.
+- Recipe instructions are editable as text but cannot be added or removed.
+- Recipe Editor exposes three ambiguous actions: Save draft, Save changes, and Cook this.
+- Fridge and Freezer currently use nearby blue/cyan hues.
+- Canonical inventory truth already defines quantity in a FoodDefinition base unit. The direct unit field therefore edits the lot's unit/base-unit representation and must stay explicit rather than silently converting dimensions.
+- `FR-STO-007` currently omits unit and stored-date editing, while `FR-EDT-002` already requires editable instructions. The product contract needs a narrow update for the newly requested Storage fields and clearer cooking action language.
+- The relational model stores unit on `FoodDefinition`, not `InventoryLot`. A unit correction must therefore update the food definition once so every lot and aggregate remains consistent; the edited lot's numeric quantity remains an explicit corrected value, not an inferred conversion.
+- The lot mutation service already writes one idempotent ActivityEvent with a structured `changes` snapshot, so unit and stored-date edits can extend the same transaction without adding a new mutation path.
+- The Recipe Editor currently has manual local draft persistence. The action row can be reduced to one explicit Saved Recipes action plus one “review usage and update Storage” action while keeping internal persistence in the existing save/start-cooking paths.
+- Culinary-specific units exist in demo data and UI choices (`head`, `bulb`, `clove`). Replace fixture/default usage with general mass/count units and reduce Add Food choices to `g`, `kg`, `ml`, `l`, and `piece` while still accepting typed server units.
+- The direct Food Edit should use a four-field grid (quantity, unit, stored date, use-by date) and retain location/lot controls as secondary details.
+- General unit support already includes `l` in backend domain conversion; the frontend vocabulary is the part missing it. The universal MVP choices can be `g`, `kg`, `ml`, `l`, and `piece`.
+- Demo inventory currently encodes broccoli as `1 head` and garlic as `2 bulb`; normalize both to grams so representative UI and cooking reconciliation no longer teach food-specific counters.
+- Cooking reconciliation only prefills when recipe and Storage units match, so changing garlic fixture amounts to grams removes the confusing manual-entry mismatch without weakening the no-guessed-conversion rule.
+- Browser inspection confirms Fridge remains blue while Freezer now reads as a clearly separate mint/teal badge with explicit icon and label; the difference is visible inside both urgent and neutral tile surfaces.
+- The live development database still contains pre-change demo values such as broccoli `head` and garlic `bulb`. Code and fresh seeds are normalized, but existing user data is intentionally not rewritten silently; the new direct Unit field lets the user correct it explicitly.
+- The direct Food Edit renders as a clean single-column mobile form with distinct quantity, unit, stored-date, and use-by cards; all four fields have meaningful icons and accessible labels.
+- Navigating from a scrolled Storage grid preserved the old scroll offset because the router had no scroll behavior, initially hiding the food identity block. Added top-of-page navigation while preserving browser saved positions on Back.
+- Recipe Editor now reads cleanly from top to bottom at mobile width: `Recipe serves`/`You’re making`, `Full recipe`, ingredient Food Tokens, Add/Remove step controls, and two result-oriented footer actions.
+- Live interaction confirmed instruction count changes 3 → 4 → 3, so both add and remove work without losing the existing ordered steps.
+- Legacy Garlic recipe fixture content is normalized to `10 g` in the live editor; no `clove` wording remains in the user-facing recipe flow.
+- Meal Ideas still uses a navy `RecipeMatchBelt` container even though Rescue and the top `Using` strip use the neutral selection tray. The fixed order/used-state contract does not require a navy background, so one neutral tray can preserve the semantic belt without the visual discontinuity.
+- Source cards currently assume and display both `minutes` and `serves`. Duration should be removed entirely; yield may remain internal/optional for normalized editing but should not be required card metadata.
+- `Open source`, `Use this recipe`, and AI-plan `Edit recipe` describe two destinations with three different verbs. Use `View original page` for navigation and one shared `Review & edit recipe` label for both editor paths.
+- Meal Ideas now reuses the actual non-editable `SelectionRail` for its top seven-food context. Static slots are no longer inert buttons, so visual reuse does not introduce false actions.
+- Recipe Match Belt now shares the neutral tray, white slot, position marker, radius, and edge system; used tokens stay full color with a check, while unused tokens are recessed/desaturated with a visible minus.
+- Obsolete dark-rail semantic tokens and the dark-rail developer showcase were removed rather than left as an unused alternate visual language.
+- Source cards now show only publisher/domain, title, the match belt, and two explicit actions. Estimated minutes and source-card yield are absent; normalized source yield remains optional internally for editor initialization.
+- Mobile visual inspection confirms the top Results context and every source belt now read as one continuous seven-slot system. The source action stack remains legible at the narrow active viewport.
+- DOM inspection confirms source cards and the AI plan expose the exact same `Review & edit recipe` action label, while external navigation is consistently `View original page`.
+- Recipe Match Belt currently repeats the used/dimmed state with a check/minus marker. The requested reduction can remove only the marker while preserving the fixed seven-slot order, accessible labels, color, opacity, and elevation semantics.
+- Location SVGs currently live only inside `LocationBadge`, while five location selectors are generic text chips. Extracting one location icon and one location-filter component prevents future color/icon drift across Storage, Rescue selection, Add Food, Food Edit, and Recipe ingredient picking.
+- Storage tile quantity and urgency currently share the same small text size and adjacent placement; `piece` quantities also omit their unit. Explicit units plus a neutral quantity capsule and separate clock/date-state row will remove the `3 1–2 days` ambiguity.
+- The inventory result count is currently in the same flex row as four scope tabs and is hidden below 460 px. Moving it to a heading row above the filters keeps the count visible and eliminates overlap risk.
+- `Past date` is a date fact, not proof that food is unusable. A tombstone icon can supply the requested humor, but the copy must remain `Past date`/`已过日期` and must not imply a food-safety conclusion.
+- Mobile browser inspection confirms the source belt now communicates used/not-used solely through full-color elevation versus dimmed recession; no check/minus glyph remains, while accessible labels still expose the exact state.
+- `Website` with a globe and `Edit recipe` with a pencil are visually distinct and concise. The same `Edit recipe` action is present on source cards and the AI plan, and the Recipe Editor provenance link reuses `Website`.
+- Storage now reads quantity as an icon-backed value capsule with an explicit unit (`3 pieces`) and urgency as a separate clock/tombstone row. The prior ambiguous `3 1–2 days` sequence is no longer rendered.
+- The shared location filter renders All/Fridge/Freezer/Pantry as a coherent icon/color/text system. Interactive browser inspection confirmed Freezer selection changes the result count to `2 items` and shows only Freezer foods.
+- The complete-inventory count remains visible on a heading row above the location filters at the active narrow viewport, instead of being hidden or competing for tab width.
+- Root cause of legacy `head`/`bulb` display: the frontend catalog is already limited to five units, but backend Storage requests accept arbitrary strings, the shared quantity table still knows food-specific count aliases, unit edit fields are free-form, and idempotent demo seeding intentionally skips existing local rows.
+- The existing check-in service rejects any unit string different from a FoodDefinition base unit instead of converting compatible `kg/g` or `l/ml` inputs. The Decimal quantity domain already provides exact same-dimension conversion and should be reused rather than duplicated.
+- The existing lot-edit service changes the FoodDefinition base-unit label without converting sibling lot quantities. A safe unit edit must convert every lot transactionally because base unit is shared food-level truth.
+- The quantity glyph is drawn as a weighing scale. It is semantically wrong for `piece`, `ml`, and `l`; the existing localized label and value capsule make deletion clearer than replacing it with another abstract symbol.
+- Live database normalization now renders legacy Broccoli as `1 piece` and Garlic as `2 pieces`; numeric values were deliberately preserved because alias-to-piece is one-to-one.
+- Add Food initially combined an existing legacy base unit (`piece`) with a catalog default quantity from another dimension (`300 g`), producing `300 pieces`. The safe rule is to convert compatible defaults and fall back to `1` when the existing and catalog dimensions differ.
+- Unit selectors must update their suggested numeric value at the same time. Browser interaction confirmed `250 g → 0.25 kg` in Add Food and `50 g → 0.05 kg` in Food Edit.
+- The aggregate edit draft briefly used `piece` before lot hydration, so its computed delta attempted an invalid conversion on the first render. Gating dirty/conversion calculations behind draft readiness removes the race without weakening cross-dimension rejection.

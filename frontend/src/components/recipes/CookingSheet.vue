@@ -91,7 +91,7 @@ function buildLines() {
     const parsed = parseAmount(ingredient.amount)
     const unit = stored?.unit ?? parsed.unit ?? 'g'
     // Prefill only when the recipe unit matches the storage unit; otherwise the
-    // user types the storage-unit amount themselves (e.g. "2 cloves" vs bulbs).
+    // user types the storage-unit amount themselves; Fridgital never guesses a conversion.
     const prefill = stored && parsed.value && (!parsed.unit || parsed.unit === stored.unit) ? parsed.value : ''
     nextLines.push({
       key: ingredient.id,
@@ -389,13 +389,13 @@ async function updateStorage() {
 }
 
 .cooking-sheet__stale {
-  color: var(--color-rail);
+  color: var(--color-primary-hover);
   background: var(--color-primary-softer);
 }
 
 .cooking-sheet__error {
-  color: var(--color-urgency-past-ink);
-  background: var(--color-urgency-past);
+  color: var(--color-danger-ink);
+  background: var(--color-danger-soft);
 }
 
 .cooking-lines {
@@ -415,7 +415,7 @@ async function updateStorage() {
 }
 
 .cooking-line--shortfall {
-  box-shadow: inset 0 0 0 1px var(--color-urgency-past-edge);
+  box-shadow: inset 0 0 0 1px var(--color-danger-edge);
 }
 
 .cooking-line--excluded {
@@ -440,7 +440,7 @@ async function updateStorage() {
 }
 
 .cooking-line--shortfall .cooking-line__main small:first-of-type {
-  color: var(--color-urgency-past-ink);
+  color: var(--color-danger-ink);
 }
 
 .cooking-line__amount {

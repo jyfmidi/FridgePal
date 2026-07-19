@@ -301,7 +301,7 @@ Domain code must not import UI, HTTP, database, or provider packages. In the per
 
 1. Write tests that AI plan, source analysis, and SavedRecipe all map into one RecipeDraft editor model.
 2. Implement draft autosave and clear Draft saved versus Saved states.
-3. Build inline Name/Description, provenance, original yield, portion controls, ingredient grid, instructions, Save, and Cook actions.
+3. Build inline Name/Description, provenance, plain-language full-recipe servings, portion controls, ingredient grid, freely addable/removable instructions, explicit Saved Recipes action, and reconciliation action.
 4. Implement numeric/qualitative amount editing and base-value back-normalization.
 5. Implement unlimited Add from Storage with `In recipe`, duplicate prevention, and As needed default.
 6. Implement explicit SavedRecipe create/update and Recipes cards.

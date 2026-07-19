@@ -28,9 +28,6 @@ body {
   line-height: var(--line-height-normal);
   color: var(--color-ink);
   background-color: var(--color-canvas);
-  background-image:
-    radial-gradient(120% 60% at 50% -10%, rgb(255 252 240 / 0.9), transparent 60%);
-  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

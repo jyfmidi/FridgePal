@@ -1,0 +1,39 @@
+services:
+  db:
+    image: mysql:8.4
+    volumes:
+      - fridgital-mysql-data:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-fridgital}
+      MYSQL_USER: ${MYSQL_USER:?set MYSQL_USER in .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8000"
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:?set MYSQL_USER in .env}:${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}@db:3306/${MYSQL_DATABASE:-fridgital}
+      RECIPE_PROVIDER_MODE: ${RECIPE_PROVIDER_MODE:-fixture}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
+      MINIMAX_BASE_URL: ${MINIMAX_BASE_URL:-https://api.minimax.io/v1}
+      MINIMAX_MODEL: ${MINIMAX_MODEL:-MiniMax-M3}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Shanghai}
+      APP_DEFAULT_LOCALE: ${APP_DEFAULT_LOCALE:-en}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  fridgital-mysql-data:

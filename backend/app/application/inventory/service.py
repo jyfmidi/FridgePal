@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.allocation import AllocationLot, allocate
+from app.domain.quantity import Quantity, convert
 from app.domain.types import InventoryLotStatus, InventoryReason
 from app.infrastructure.db.models import (
     ActivityEventRow,
@@ -57,6 +58,8 @@ def check_in_food(session: Session, command: CheckInCommand) -> CheckInResult:
         return CheckInResult(replay.id, event.id, True)
 
     food = session.get(FoodDefinitionRow, command.food_key)
+    stored_quantity = command.quantity
+    stored_unit = command.unit
     if food is None:
         food = FoodDefinitionRow(
             id=command.food_key,
@@ -66,13 +69,15 @@ def check_in_food(session: Session, command: CheckInCommand) -> CheckInResult:
             recommended_storage=command.location,
         )
         session.add(food)
-    elif food.base_unit != command.unit:
-        raise ValueError("check-in unit must match the FoodDefinition base unit")
+    else:
+        converted = convert(Quantity(command.quantity, command.unit), food.base_unit)
+        stored_quantity = converted.value
+        stored_unit = food.base_unit
 
     lot = InventoryLotRow(
         id=str(uuid4()),
         food_definition_id=food.id,
-        quantity=command.quantity,
+        quantity=stored_quantity,
         storage_location=command.location,
         stored_on=command.stored_on,
         expires_on=command.expires_on,
@@ -84,11 +89,11 @@ def check_in_food(session: Session, command: CheckInCommand) -> CheckInResult:
         id=str(uuid4()),
         event_type="CHECK_IN",
         food_definition_id=food.id,
-        quantity_delta=command.quantity,
+        quantity_delta=stored_quantity,
         display_snapshot={
             "names": command.names,
-            "quantity": decimal_string(command.quantity),
-            "unit": command.unit,
+            "quantity": decimal_string(stored_quantity),
+            "unit": stored_unit,
             "location": command.location,
         },
         idempotency_key=command.idempotency_key,
@@ -240,7 +245,10 @@ class EditLotCommand:
     idempotency_key: str
     lot_id: str
     quantity: Decimal | None
+    unit: str | None
     location: str | None
+    stored_on: date | None
+    stored_on_provided: bool
     expires_on: date | None
     expires_on_provided: bool
 
@@ -259,9 +267,25 @@ def edit_lot(session: Session, command: EditLotCommand) -> EditLotResult:
     lot = session.get(InventoryLotRow, command.lot_id)
     if lot is None:
         raise LotNotFoundError(f"unknown lot: {command.lot_id}")
+    food = session.get(FoodDefinitionRow, lot.food_definition_id)
+    if food is None:  # Protected by the database foreign-key contract.
+        raise LotNotFoundError(f"unknown food definition for lot: {command.lot_id}")
 
     changes: dict[str, dict[str, str | None]] = {}
     quantity_delta = Decimal(0)
+    if command.unit is not None and command.unit != food.base_unit:
+        old_unit = food.base_unit
+        related_lots = session.scalars(
+            select(InventoryLotRow).where(
+                InventoryLotRow.food_definition_id == lot.food_definition_id
+            )
+        ).all()
+        for related_lot in related_lots:
+            related_lot.quantity = convert(
+                Quantity(related_lot.quantity, old_unit), command.unit
+            ).value
+        changes["unit"] = {"from": food.base_unit, "to": command.unit}
+        food.base_unit = command.unit
     if command.quantity is not None and command.quantity != lot.quantity:
         quantity_delta = command.quantity - lot.quantity
         changes["quantity"] = {
@@ -272,6 +296,13 @@ def edit_lot(session: Session, command: EditLotCommand) -> EditLotResult:
     if command.location is not None and command.location != lot.storage_location:
         changes["location"] = {"from": lot.storage_location, "to": command.location}
         lot.storage_location = command.location
+    if command.stored_on_provided and command.stored_on != lot.stored_on:
+        changes["storedOn"] = {
+            "from": lot.stored_on.isoformat(),
+            "to": command.stored_on.isoformat() if command.stored_on else None,
+        }
+        if command.stored_on is not None:
+            lot.stored_on = command.stored_on
     if command.expires_on_provided and command.expires_on != lot.expires_on:
         changes["expiresOn"] = {
             "from": lot.expires_on.isoformat() if lot.expires_on else None,
@@ -332,11 +363,15 @@ def reduce_inventory(session: Session, command: ReduceCommand) -> ReduceResult:
         )
 
     food = session.get(FoodDefinitionRow, command.food_key)
-    if food is not None and food.base_unit != command.unit:
-        raise ValueError("reduce unit must match the FoodDefinition base unit")
+    amount = command.amount
+    unit = command.unit
+    if food is not None:
+        converted = convert(Quantity(command.amount, command.unit), food.base_unit)
+        amount = converted.value
+        unit = food.base_unit
 
     lots = _active_lots(session, command.food_key, command.location)
-    plan = allocate({command.food_key: command.amount}, _allocation_lots(lots))
+    plan = allocate({command.food_key: amount}, _allocation_lots(lots))
     if plan.shortfalls:
         raise ValueError("insufficient quantity")
 
@@ -365,11 +400,11 @@ def reduce_inventory(session: Session, command: ReduceCommand) -> ReduceResult:
         id=str(uuid4()),
         event_type=InventoryReason.MANUAL_CONSUMPTION.value,
         food_definition_id=command.food_key,
-        quantity_delta=-command.amount,
+        quantity_delta=-amount,
         display_snapshot={
             "names": food.names if food is not None else {"en": command.food_key},
-            "quantity": decimal_string(command.amount),
-            "unit": command.unit,
+            "quantity": decimal_string(amount),
+            "unit": unit,
             "location": command.location,
         },
         idempotency_key=command.idempotency_key,
@@ -444,8 +479,14 @@ def cooking_preview(
     lines: list[dict[str, object]] = []
     feasible = True
     for item in items:
+        food = session.get(FoodDefinitionRow, item.food_key)
+        requested_amount = item.amount
+        if food is not None:
+            requested_amount = convert(
+                Quantity(item.amount, item.unit), food.base_unit
+            ).value
         lots = _active_lots(session, item.food_key, location)
-        plan = allocate({item.food_key: item.amount}, _allocation_lots(lots))
+        plan = allocate({item.food_key: requested_amount}, _allocation_lots(lots))
         shortfall = plan.shortfalls.get(item.food_key, Decimal(0))
         if shortfall > 0:
             feasible = False
@@ -453,8 +494,8 @@ def cooking_preview(
         lines.append(
             {
                 "foodKey": item.food_key,
-                "requested": decimal_string(item.amount),
-                "allocated": decimal_string(item.amount - shortfall),
+                "requested": decimal_string(requested_amount),
+                "allocated": decimal_string(requested_amount - shortfall),
                 "shortfall": decimal_string(shortfall),
                 "allocations": [
                     {
