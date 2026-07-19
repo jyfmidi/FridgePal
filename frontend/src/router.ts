@@ -19,6 +19,7 @@ export const router = createRouter({
     { path: '/recipes', name: 'recipes', component: RecipesView },
     { path: '/history', name: 'history', component: ComingSoonView, props: { titleKey: 'navigation.history' } },
     { path: '/add-food', name: 'add-food', component: AddFoodView, meta: { hideNavigation: true } },
+    { path: '/storage/item', name: 'storage-item', component: () => import('./views/StorageItemView.vue'), meta: { hideNavigation: true } },
     {
       // Dev-only design token showcase; intentionally not linked from app navigation.
       path: '/dev/tokens',

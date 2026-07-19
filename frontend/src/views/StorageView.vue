@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
 import AppChip from '../components/AppChip.vue'
 import StorageTile from '../components/storage-tile/StorageTile.vue'
@@ -12,6 +12,7 @@ type Scope = 'all' | StorageLocation
 
 const { t, locale } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const scope = ref<Scope>('all')
 const searchOpen = ref(false)
 const searchQuery = ref('')
@@ -47,6 +48,11 @@ function urgencyLabel(food: InventoryFood): string | undefined {
 function toggleLocale() {
   locale.value = locale.value === 'en' ? 'zh-CN' : 'en'
   document.documentElement.lang = locale.value
+}
+
+/** UI-03 — a tile tap opens the ingredient detail/edit view. */
+function openItem(food: InventoryFood) {
+  void router.push({ path: '/storage/item', query: { food: food.foodKey, location: food.location.toUpperCase() } })
 }
 </script>
 
@@ -87,6 +93,7 @@ function toggleLocale() {
           :name="t(food.nameKey)"
           :quantity-label="quantityLabel(food)"
           :urgency-label="urgencyLabel(food)"
+          @click="openItem(food)"
         />
       </div>
     </section>
@@ -110,6 +117,7 @@ function toggleLocale() {
           :name="t(food.nameKey)"
           :quantity-label="quantityLabel(food)"
           compact
+          @click="openItem(food)"
         />
       </div>
       <div v-else class="storage-empty">
