@@ -1,5 +1,16 @@
 # Findings
 
+## Docker Compose deployment
+
+- The repository already has a working multi-stage `Dockerfile`, a two-service `compose.yaml`, and an environment template, but README still says application implementation has not started.
+- Compose currently publishes `8080` on every interface, which conflicts with the canonical private/no-auth deployment boundary unless the host firewall restricts access.
+- The repository has no `.dockerignore`; a server build can otherwise send `.git`, `frontend/node_modules`, `backend/.venv`, local databases, and caches into the build context.
+- MySQL data already uses a named volume, and the application already runs Alembic before Uvicorn. A single app replica is therefore the supported deployment shape.
+- Direct IP access does not require a domain or reverse proxy, but binding to `0.0.0.0` must be an explicit operator choice and port `8080` must be limited to trusted source IPs.
+- Deployment documentation must warn that changing the Compose project name can make Docker attach a different database volume.
+
+## Interaction clarity
+
 - The current PATCH lot contract supports only quantity, location, and use-by date.
 - `InventoryLot` already stores `unit` and `storedOn`, so the requested UI requires a real mutation-contract extension rather than client-only fields.
 - The current Food Edit primary form uses stepper buttons and an effect hint; both conflict with the requested direct-entry interaction.

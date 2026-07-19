@@ -1,6 +1,9 @@
+name: ${COMPOSE_PROJECT_NAME:-fridgital}
+
 services:
   db:
     image: mysql:8.4
+    restart: unless-stopped
     volumes:
       - fridgital-mysql-data:/var/lib/mysql
     environment:
@@ -9,18 +12,26 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
       MYSQL_RANDOM_ROOT_PASSWORD: "yes"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test:
+        [
+          "CMD-SHELL",
+          'MYSQL_PWD="$$MYSQL_PASSWORD" mysqladmin ping -h 127.0.0.1 -u "$$MYSQL_USER" --silent',
+        ]
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 20s
+    stop_grace_period: 1m
 
   app:
     build: .
+    init: true
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "8080:8000"
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:8000"
     environment:
       DATABASE_URL: mysql+pymysql://${MYSQL_USER:?set MYSQL_USER in .env}:${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}@db:3306/${MYSQL_DATABASE:-fridgital}
       RECIPE_PROVIDER_MODE: ${RECIPE_PROVIDER_MODE:-fixture}
@@ -29,11 +40,17 @@ services:
       MINIMAX_MODEL: ${MINIMAX_MODEL:-MiniMax-M3}
       APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Shanghai}
       APP_DEFAULT_LOCALE: ${APP_DEFAULT_LOCALE:-en}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
 
 volumes:
   fridgital-mysql-data:
+    name: ${COMPOSE_PROJECT_NAME:-fridgital}-mysql-data

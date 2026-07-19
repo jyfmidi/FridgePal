@@ -1,4 +1,26 @@
-# Fridgital interaction clarity passes
+# Fridgital delivery work
+
+## Current task: Docker Compose deployment documentation
+
+### Goal
+Make a fresh private Linux server deployment repeatable through Docker Compose and document the real project structure for humans and agents.
+
+### Scope decisions
+- Docker Compose is the only production deployment target for this slice.
+- Direct server-IP access is supported through an explicit `0.0.0.0` bind and a trusted-source firewall rule.
+- No domain, TLS proxy, Vercel adaptation, or application authentication is added.
+- Deployment documentation is canonical at `docs/DEPLOYMENT.md`; README remains the concise entry point.
+
+### Phases
+1. [complete] Confirm Docker Compose over Vercel and approve the deployment boundary.
+2. [complete] Re-read canonical requirements and inspect the current container/runtime configuration.
+3. [complete] Harden Compose, the image build, and the environment template.
+4. [complete] Write the deployment runbook and restructure README.
+5. [complete] Validate configuration, image build, full Compose lifecycle, backup/restore, and the regression suite.
+
+---
+
+## Previous task: interaction clarity passes
 
 ## Goal
 Make recipe and food editing direct, understandable, visually consistent, and truthful about when Storage changes.
@@ -61,3 +83,9 @@ Current extension: reduce redundant source-card signals and make Storage quantit
 | The first focused pytest command assumed a root-level `.venv`. | 1 | The project virtual environment is `backend/.venv`; reran the exact RED tests through that interpreter. |
 | The legacy-normalization test assumed inventory query ordering. | 1 | Compared the food-key/quantity mapping instead; Storage ordering is not part of that migration contract. |
 | Food Edit rendered before its unit draft was initialized and attempted `g → piece`. | 1 | Added an explicit draft-ready gate so conversion and dirty-state calculations begin only after lot data synchronizes. |
+| Compose validation without `.env` stopped on the required MySQL password. | 1 | Validated with `--env-file .env.example`; production still requires a private `.env`. |
+| Docker Buildx could not write its activity cache inside the workspace sandbox. | 1 | Re-ran the build through the approved Docker Compose permission boundary. |
+| The configured DaoCloud Docker Hub mirror returned `401` while resolving the optional Dockerfile syntax image. | 1 | Removed the unused syntax directive; the retry built the complete image successfully. |
+| Fresh MySQL startup failed while demo seeding because a child ActivityEvent flushed before its new FoodDefinition parent. | 1 | Added a foreign-key-enabled regression test and explicitly flushed each new parent before adding child rows. |
+| Production Vue history route `/rescue` returned 404 on direct refresh. | 1 | Added an SPA static-serving contract and an index fallback for extensionless client routes while preserving missing-asset 404s. |
+| `mysqldump` requested `PROCESS` privilege for tablespace metadata when run as the least-privileged app user. | 1 | Added `--no-tablespaces`; no database privilege escalation is required. |

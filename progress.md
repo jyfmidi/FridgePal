@@ -1,6 +1,21 @@
 # Progress
 
 ## 2026-07-19
+- User selected Docker Compose on a self-managed server instead of Vercel and approved direct IP access without a domain.
+- Approved a two-container deployment design with configurable host binding, persistent MySQL, no bundled reverse proxy, and a dedicated agent-readable operations runbook.
+- Re-read the four canonical documents and inspected the existing Compose, Dockerfile, environment, settings, database session, and package configuration.
+- Added the approved deployment design and implementation plan under `docs/plans/`.
+- Added `.dockerignore`, a non-root application runtime, configurable/safe Compose binding, restart and health policies, deterministic volume naming, and an expanded deployment environment template.
+- Wrote `docs/DEPLOYMENT.md` with first install, IP access, firewall, health, upgrades, backup/restore, rollback, removal safety, troubleshooting, and agent execution instructions.
+- `docker compose --env-file .env.example config --quiet` passes. The first image build reached an environment-specific `401` from the locally configured DaoCloud Docker Hub mirror while resolving the optional Dockerfile syntax image; removed that unnecessary directive before retrying.
+- The retry built `fridgital-app` successfully: 430 KB build context, Vue production build with 134 modules, Python package installation, and non-root runtime image creation all completed.
+- Fresh Compose smoke exposed and then verified two production-only bugs: strict MySQL foreign-key ordering during demo seed and Vue history-route refresh 404s. Added focused RED/GREEN integration contracts for both.
+- The isolated stack now reaches healthy state, `/api/health` returns OK, `/rescue` returns 200, a missing asset remains 404, and the Storage response hash is identical across an app restart.
+- The first backup command exposed MySQL 8.4's tablespace `PROCESS` privilege requirement; kept the database user least-privileged and changed the runbook to use `mysqldump --no-tablespaces`.
+- Re-ran backup successfully and restored it into the isolated MySQL deployment; the post-restore Storage hash matched the pre-backup hash.
+- Confirmed the application container runs as uid/gid `fridgital`, direct-IP config publishes `0.0.0.0:8080`, and MySQL remains unpublished.
+- Full backend pytest, Ruff, mypy, frontend ESLint, vue-tsc, Vite build, and Compose config checks passed.
+- Removed the exact temporary `fridgital-deploy-smoke` containers, network, and MySQL volume after validation; no user data or pre-existing Docker resource was touched.
 - Confirmed Design B remains the approved direction: one semantic visual system across the app.
 - Started the editor clarity pass.
 - Chose a minimal verification strategy: mutation-path contract coverage plus static/build checks and focused browser inspection; no Playwright work.

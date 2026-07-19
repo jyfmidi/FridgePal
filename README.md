@@ -1,22 +1,40 @@
 # Fridgital
 
-Fridgital is a private, self-hosted digital twin for household food storage. It helps a solo home cook capture food with minimal effort, notice expiration risk, discover source-grounded recipes, adjust a recipe, cook, and reconcile actual usage back into inventory.
+Fridgital is a private, self-hosted digital twin for household food storage. It helps one home cook record food, notice expiration risk, turn urgent ingredients into meal ideas, edit recipes, and reconcile actual usage back into Storage.
 
 **Primary promise:** Turn food that is about to expire into tonight's meal.
 
-**Current status:** Product and interaction design are consolidated. Application implementation has not started.
+> **Security boundary:** Fridgital has no authentication. Deploy it on a private network, through a VPN, or behind a firewall that permits only trusted source IPs. Unrestricted public exposure is unsupported.
 
-## Start Here
+## Current Status
 
-Read the canonical documents in this order:
+Fridgital is an actively developed hackathon MVP.
 
-1. [Product Requirements](docs/PRODUCT_REQUIREMENTS.md) — scope, requirements, journeys, acceptance criteria, and open decisions.
-2. [Domain and AI Contracts](docs/DOMAIN_AND_AI_CONTRACTS.md) — entities, invariants, operations, AI grounding, transactions, security, and errors.
-3. [UX Specification](docs/UX_SPEC.md) — navigation, screen behavior, responsive rules, visual language, states, accessibility, and reference boards.
-4. [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) — delivery slices, test gates, hackathon cut line, and deployment readiness.
-5. [AGENTS.md](AGENTS.md) — mandatory instructions for coding agents working in this repository.
+- Storage, Use Soon, Add Food, item editing, canonical unit conversion, Rescue selection, recipe results, Recipe Editor, Saved Recipes UI, and cooking reconciliation interactions are implemented.
+- Inventory data is persisted through FastAPI, SQLAlchemy, Alembic, and MySQL in Docker deployments.
+- Recipe discovery currently retains deterministic fixture behavior; live provider integration remains adapter-controlled and optional.
+- History is still represented by a placeholder route, and parts of the recipe/saved-recipe flow remain client-side MVP state rather than complete server persistence.
+- Docker Compose is the supported production deployment path.
 
-If documents conflict, use the order above. Prototype pixels illustrate the intended experience but never override written behavior.
+Do not treat the current MVP as a public multi-user service.
+
+## Deploy with Docker Compose
+
+For a new self-managed Linux server, follow the canonical [Docker Compose deployment runbook](docs/DEPLOYMENT.md). It includes IP-based access, firewall requirements, health checks, upgrades, backups, restores, rollbacks, and troubleshooting.
+
+Minimal first start:
+
+```bash
+cp .env.example .env
+chmod 600 .env
+# Replace MYSQL_PASSWORD and review APP_BIND_ADDRESS before continuing.
+docker compose config --quiet
+docker compose build --pull app
+docker compose up -d
+docker compose ps
+```
+
+The safe default binds to `127.0.0.1:8080`. For direct access through a server IP, set `APP_BIND_ADDRESS=0.0.0.0` and allow port `8080` only from trusted source addresses in the host or cloud firewall.
 
 ## Product Loop
 
@@ -26,85 +44,171 @@ flowchart LR
     B --> C["Choose up to 7 foods in Rescue"]
     C --> D["Review recipe sources and AI Cooking Plan"]
     D --> E["Edit recipe and portion"]
-    E --> F["Save or Cook"]
-    F --> G["Confirm what was used"]
-    G --> H["Update Storage and History"]
+    E --> F["Review actual usage"]
+    F --> G["Update Storage"]
+    G --> H["History and Undo"]
 ```
 
-## MVP Snapshot
+## Architecture
 
-- Solo-user private application deployed with Docker Compose.
-- Responsive web UI with feature parity across mobile and desktop; mobile web is the canonical daily-use composition.
-- Seeded and user-extensible food library with natural units and storage-aware shelf-life defaults.
-- Lot-level inventory in Fridge, Freezer, and Pantry, shown as compact aggregated food tiles.
-- Five-level expiration urgency and a complete Use Soon section.
-- Persistent seven-slot Rescue selection and recent-search restoration.
-- Source-grounded recipe discovery with visible provenance.
-- One canonical Recipe Editor for AI plans, analyzed sources, and saved recipes.
-- Portion scaling, Storage-linked ingredient addition, saved Recipes, editable cooking deductions, History, and Undo.
-- English and Simplified Chinese localization architecture.
+The repository builds one application image. FastAPI serves both the API and the compiled Vue client; MySQL is reachable only through the private Compose network.
 
-## Current Visual References
+```mermaid
+flowchart LR
+    BROWSER["Responsive browser client"] -->|"same-origin /api"| APP["FastAPI application"]
+    APP --> DOMAIN["Domain and application rules"]
+    APP --> DB[("MySQL 8.4")]
+    APP --> RECIPE["Recipe provider adapters"]
+    DB --> VOLUME["Named Docker volume"]
+```
 
-- [Storage and Rescue](docs/visuals/storage-and-rescue.png)
-- [Recipe Discovery and Editor](docs/visuals/recipe-discovery-and-editor.png)
-- [Recipes and Cooking](docs/visuals/recipes-and-cooking.png)
+Inventory mutations remain server-owned, transactional, idempotent, non-negative, auditable, and reversible through compensating events. AI and retrieved web content are untrusted and cannot write inventory.
 
-These boards are mobile-first reference states. They do not imply that exact generated icons, fonts, spacing, or tiny bitmap copy are production assets.
+## Repository Structure
 
-## Explicit Non-Goals for the Hackathon MVP
+```text
+Fridgital/
+├── backend/
+│   ├── app/
+│   │   ├── api/                 # FastAPI routes and transport models
+│   │   ├── application/         # Use cases and transaction orchestration
+│   │   ├── domain/              # Pure inventory, quantity, and urgency rules
+│   │   └── infrastructure/
+│   │       ├── db/              # SQLAlchemy models, sessions, and seed handling
+│   │       ├── logging/         # Logging boundary
+│   │       └── recipe/          # Provider-neutral recipe adapters
+│   ├── alembic/                 # Database migrations
+│   ├── tests/                   # Unit, integration, contract, and security tests
+│   └── pyproject.toml
+├── frontend/
+│   ├── src/
+│   │   ├── api/                 # Typed HTTP clients
+│   │   ├── components/          # Shared headers, icons, food tokens, and controls
+│   │   ├── features/            # Storage, Rescue, and Recipes state
+│   │   ├── i18n/                # English and Simplified Chinese resources
+│   │   ├── styles/              # Semantic visual tokens and global styles
+│   │   └── views/               # Route-level Vue views
+│   ├── package.json
+│   └── vite.config.ts
+├── docs/
+│   ├── DEPLOYMENT.md            # Canonical server operations runbook
+│   ├── PRODUCT_REQUIREMENTS.md  # Product scope and acceptance criteria
+│   ├── DOMAIN_AND_AI_CONTRACTS.md
+│   ├── UX_SPEC.md
+│   ├── IMPLEMENTATION_PLAN.md
+│   ├── plans/                   # Approved feature designs and execution plans
+│   └── visuals/                 # Non-production visual references
+├── e2e/                         # Optional browser checks and manual scripts
+├── .dockerignore                # Reproducible, minimal image build context
+├── .env.example                 # Non-secret deployment configuration template
+├── compose.yaml                 # App, MySQL, health, and persistent volume
+├── Dockerfile                   # Vue build plus non-root Python runtime
+└── AGENTS.md                    # Mandatory repository instructions for agents
+```
 
-- Public accounts or multi-user household collaboration.
-- Photo recognition, barcode scanning, or receipt import.
-- Notifications, shopping lists, nutrition tracking, or long-term meal planning.
-- Custom storage locations beyond Fridge, Freezer, and Pantry.
-- A chat-first interface or an autonomous agent that mutates inventory without confirmation.
+### Runtime ownership
 
-## Development
+- The browser owns presentation and temporary interaction state only.
+- FastAPI owns validation, inventory operations, persistence access, and provider credentials.
+- Domain code stays independent from HTTP, UI, database, and provider packages.
+- Alembic owns schema evolution; the application container applies migrations at startup.
+- MySQL is the production source of truth and lives in the `fridgital-mysql-data` volume.
 
-> **Warning:** Fridgital has no authentication. Run it on a private network or loopback only.
+## Canonical Documentation
 
-Backend (Python 3.11+):
+Read these documents completely and in this order before changing application code:
+
+1. [Product Requirements](docs/PRODUCT_REQUIREMENTS.md)
+2. [Domain and AI Contracts](docs/DOMAIN_AND_AI_CONTRACTS.md)
+3. [UX Specification](docs/UX_SPEC.md)
+4. [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
+5. [AGENTS.md](AGENTS.md)
+
+When details conflict, authority is:
+
+```text
+Product Requirements > Domain and AI Contracts > UX Specification > visual boards
+```
+
+## Local Development
+
+### Backend
+
+Requires Python 3.11 or newer.
 
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
-pytest tests                 # boot smoke test
-ruff check . && ruff format --check . && mypy app
-uvicorn app.main:app --reload   # serves http://localhost:8000/api/health
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
 ```
 
-Frontend (Node 22+):
+The local default database is SQLite. The API health endpoint is `http://127.0.0.1:8000/api/health`.
+
+### Frontend
+
+Requires Node.js 22 or newer.
 
 ```bash
 cd frontend
-npm install
-npm run dev        # http://localhost:5173, proxies /api to localhost:8000
-npm run typecheck && npm run lint && npm run build
+npm ci
+npm run dev
 ```
 
-End-to-end tests (Playwright, browsers not installed by default):
+Vite serves `http://127.0.0.1:5173` and proxies `/api` to the local backend on port `8000`.
+
+## Verification
+
+Backend:
 
 ```bash
-cd e2e
-npm install
-npx playwright install   # one-time browser download
-npm test
+cd backend
+.venv/bin/pytest -q
+.venv/bin/ruff check app tests
+.venv/bin/mypy app
 ```
 
-Docker deployment:
+Frontend:
 
 ```bash
-cp .env.example .env   # set MYSQL_USER / MYSQL_PASSWORD
-docker compose up --build   # app on http://localhost:8080
+cd frontend
+npm run lint
+npm run typecheck
+npm run build
 ```
 
-## Decisions Required Before Scaffolding
+Deployment configuration and image:
 
-- `OQ-01`: application framework, database library, and test stack.
-- `OQ-02`: recipe retrieval provider and recipe-structuring model/provider.
-- `OQ-03`: default deployment exposure: loopback/LAN only or reverse-proxy-protected external access.
+```bash
+docker compose --env-file .env.example config --quiet
+docker compose --env-file .env.example build app
+```
 
-The implementation plan supplies a minimal recommended default if the user delegates these choices, but a coding agent must not silently install tools or select external services.
+Browser automation is not required for routine documentation or container changes. Add focused end-to-end coverage only when a changed user journey needs it.
+
+## Environment Summary
+
+The complete variable reference and operational guidance live in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Important defaults are:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `APP_BIND_ADDRESS` | `127.0.0.1` | Host interface exposed by Compose. |
+| `APP_PORT` | `8080` | Host HTTP port. |
+| `MYSQL_DATABASE` | `fridgital` | Production database name. |
+| `RECIPE_PROVIDER_MODE` | `fixture` | Deterministic or live recipe provider mode. |
+| `APP_TIMEZONE` | `Asia/Shanghai` | Calendar and urgency timezone. |
+| `APP_DEFAULT_LOCALE` | `en` | Initial interface locale. |
+| `SEED_DEMO_DATA` | `true` | Whether deterministic MVP inventory is seeded. |
+
+Secrets belong only in the untracked `.env` file or a future approved secret manager. They must never enter the frontend bundle or Git history.
+
+## MVP Non-Goals
+
+- Public accounts, authentication, or multi-user household collaboration.
+- Unrestricted public internet deployment.
+- Photo recognition, barcode scanning, or receipt import.
+- Notifications, shopping lists, nutrition tracking, or long-term meal planning.
+- Custom storage locations beyond Fridge, Freezer, and Pantry.
+- An autonomous AI agent that mutates inventory without explicit confirmation.

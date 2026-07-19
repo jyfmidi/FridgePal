@@ -84,6 +84,9 @@ def seed_demo_inventory(factory: sessionmaker[Session], today: date | None = Non
                     recommended_storage=location,
                 )
                 session.add(food)
+                # The rows below store scalar foreign keys instead of ORM relationships.
+                # Persist the parent explicitly so strict databases never flush a child first.
+                session.flush()
 
             quantity = Decimal(raw_quantity)
             expires_on = (

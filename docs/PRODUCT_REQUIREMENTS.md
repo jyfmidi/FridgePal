@@ -2,7 +2,7 @@
 
 **Status:** Canonical specification for implementation  
 **Product stage:** Hackathon MVP  
-**Implementation status:** Not started  
+**Implementation status:** Active MVP development; Storage persistence and the primary responsive interaction loop are implemented, while History and parts of recipe persistence remain incomplete
 **Primary user:** A solo home cook living alone  
 **Deployment:** Private, single-user, Docker Compose
 

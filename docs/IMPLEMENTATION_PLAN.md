@@ -368,7 +368,8 @@ Domain code must not import UI, HTTP, database, or provider packages. In the per
 - Modify: `Dockerfile`
 - Modify: `compose.yaml`
 - Modify: `.env.example`
-- Create: deployment, private-exposure, backup, and restore sections in `README.md`
+- Create: `docs/DEPLOYMENT.md` as the canonical operations runbook
+- Modify: `README.md` with deployment summary and runbook link
 - Test: deployment smoke scripts selected in Task 0
 
 **Steps:**
