@@ -1,5 +1,14 @@
 # Progress
 
+## 2026-07-20
+- User decided the AI provider strategy: DeepSeek for recipe structuring (user has a pay-as-you-go key), Tavily for recipe-source retrieval (user has a key); MiniMax Coding Plan key rejected because Coding Plan keys are model-scoped and ToS-limited to coding tools.
+- User required vendor-neutral configuration names so providers can be swapped later, and ruled that retrieval queries use ingredient names, quantities, and serving count only — not expiry/urgency.
+- Implemented Task 6 adapter layer under `backend/app/infrastructure/recipe/`: versioned pydantic schemas, retrieval/structuring Protocols, `TavilyRetrievalAdapter`, `OpenAICompatibleStructuringAdapter` (one repair attempt, prompt-injection separation), deterministic fixture adapters, SSRF `safe_fetch` boundary, and a settings-driven `factory.py`.
+- Replaced `MINIMAX_*` config with `LLM_*` and `SEARCH_*` in `config.py`, `.env.example`, `compose.yaml`, and `docs/DEPLOYMENT.md`.
+- Added 52 contract/security tests (fixture determinism, schema rejection, allow-list citations, repair limit, error classification, SSRF cases; all HTTP mocked). Full suite: 193 passed; Ruff and mypy clean; no new dependencies (uses existing `httpx`).
+- Updated `OQ-02` resolutions in `docs/PRODUCT_REQUIREMENTS.md` and `docs/IMPLEMENTATION_PLAN.md` to the DeepSeek + Tavily decision.
+- User placed real DeepSeek and Tavily keys in `backend/.env`; live-mode smoke test and Task 7 (results UI + AI Cooking Plan orchestration) remain open.
+
 ## 2026-07-19
 - User selected Docker Compose on a self-managed server instead of Vercel and approved direct IP access without a domain.
 - Approved a two-container deployment design with configurable host binding, persistent MySQL, no bundled reverse proxy, and a dedicated agent-readable operations runbook.

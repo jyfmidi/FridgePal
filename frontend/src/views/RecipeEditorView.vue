@@ -8,7 +8,8 @@ import AppTaskHeader from '../components/AppTaskHeader.vue'
 import FoodToken from '../components/food-token/FoodToken.vue'
 import CookingSheet from '../components/recipes/CookingSheet.vue'
 import StorageIngredientPicker from '../components/recipes/StorageIngredientPicker.vue'
-import { buildPlanIngredients, recipeSources } from '../features/recipes/fixtures'
+import { fetchRescueSession } from '../api/rescue'
+import { fetchRecipe as apiFetchRecipe } from '../api/recipes'
 import { normalizeRecipeDraftData, useRecipeStore, type RecipeDraftData, type RecipeIngredientDraft } from '../features/recipes/recipeStore'
 import { useRescueStore } from '../features/rescue/rescueStore'
 import { useInventoryStore } from '../features/storage/inventoryStore'
@@ -18,53 +19,22 @@ const route = useRoute()
 const router = useRouter()
 const { inventory, hydrateFromServer } = useInventoryStore()
 const { selectedFoods } = useRescueStore(inventory)
-const { getSavedRecipe, saveRecipe } = useRecipeStore()
+const { saveRecipe } = useRecipeStore()
 const origin = computed(() => String(route.query.origin ?? 'ai-plan'))
 const routeSavedId = computed(() => (route.query.savedId ? String(route.query.savedId) : undefined))
-const openedSavedRecipe = computed(() => getSavedRecipe(routeSavedId.value))
-const source = computed(() => recipeSources.find((item) => item.id === origin.value))
 const draftKey = computed(() => `fridgital.recipe.draft.v1.${origin.value}`)
 
-function defaultDraft(): RecipeDraftData {
-  if (openedSavedRecipe.value) {
-    return {
-      name: openedSavedRecipe.value.name,
-      description: openedSavedRecipe.value.description,
-      baseYield: openedSavedRecipe.value.baseYield,
-      multiplier: openedSavedRecipe.value.multiplier,
-      ingredients: openedSavedRecipe.value.ingredients.map((ingredient) => ({ ...ingredient })),
-      instructions: [...openedSavedRecipe.value.instructions],
-    }
-  }
-  return {
-    name: source.value?.title ?? t('recipeResults.aiTitle'),
-    description: source.value
-      ? t('recipeResults.sourcesHint')
-      : t('recipeResults.aiDescription'),
-    baseYield: source.value?.serves ?? 2,
-    multiplier: 1,
-    ingredients: buildPlanIngredients(selectedFoods.value).map((ingredient) => ({
-      id: ingredient.id,
-      nameKey: ingredient.nameKey,
-      foodKey: inventory.value.find((food) => food.id === ingredient.id)?.foodKey,
-      baseAmount: ingredient.amount,
-    })),
-    instructions: [t('recipeResults.stepOne'), t('recipeResults.stepTwo'), t('recipeResults.stepThree')],
-  }
-}
+const loading = ref(true)
+const loadError = ref<string | null>(null)
 
-function loadDraft(): RecipeDraftData {
-  if (openedSavedRecipe.value) return defaultDraft()
-  try {
-    const saved = localStorage.getItem(draftKey.value)
-    if (saved) return normalizeRecipeDraftData(JSON.parse(saved) as RecipeDraftData)
-  } catch {
-    // A malformed local draft falls back to a clean normalized fixture draft.
-  }
-  return defaultDraft()
+const initial = {
+  name: '',
+  description: '',
+  baseYield: 2,
+  multiplier: 1,
+  ingredients: [] as RecipeIngredientDraft[],
+  instructions: [] as string[],
 }
-
-const initial = loadDraft()
 const name = ref(initial.name)
 const description = ref(initial.description)
 const baseYield = ref(initial.baseYield)
@@ -74,8 +44,8 @@ const instructions = ref<string[]>(initial.instructions)
 const pickerOpen = ref(false)
 const addStorageButton = ref<HTMLButtonElement | null>(null)
 const draftSaved = ref(false)
-const recipeSaved = ref(Boolean(openedSavedRecipe.value))
-const savedRecipeId = ref(openedSavedRecipe.value?.id)
+const recipeSaved = ref(Boolean(routeSavedId.value))
+const savedRecipeId = ref(routeSavedId.value)
 const cookOpen = ref(false)
 const notice = ref('')
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
@@ -90,7 +60,6 @@ function showNotice(message: string) {
 const effectiveYield = computed(() => Math.round(baseYield.value * multiplier.value * 10) / 10)
 const ingredientIds = computed(() => new Set(ingredients.value.map((ingredient) => ingredient.id)))
 const inventoryById = computed(() => new Map(inventory.value.map((food) => [food.id, food])))
-/** Recipe ingredients with effective (portion-scaled) amounts, resolved against Storage. */
 const cookIngredients = computed(() =>
   ingredients.value.map((ingredient) => ({
     id: ingredient.id,
@@ -100,8 +69,76 @@ const cookIngredients = computed(() =>
   })),
 )
 
-onMounted(() => {
-  void hydrateFromServer()
+async function loadFromApi() {
+  loading.value = true
+  loadError.value = null
+  try {
+    if (routeSavedId.value) {
+      const recipe = await apiFetchRecipe(routeSavedId.value)
+      name.value = recipe.name
+      description.value = recipe.description || ''
+      baseYield.value = recipe.baseYield
+      multiplier.value = recipe.multiplier
+      ingredients.value = recipe.ingredients
+      instructions.value = recipe.instructions
+      savedRecipeId.value = recipe.id
+      recipeSaved.value = true
+    } else if (route.query.sessionId) {
+      const session = await fetchRescueSession(String(route.query.sessionId))
+      if (origin.value === 'ai-plan' && session.aiPlan) {
+        const plan = session.aiPlan
+        name.value = plan.title
+        description.value = plan.description || ''
+        baseYield.value = plan.baseYield
+        multiplier.value = 0.5
+        ingredients.value = plan.ingredients.map((ing, i) => ({
+          id: `ai-ing-${i}`,
+          nameKey: ing.originalText,
+          foodKey: ing.mappingSuggestion || undefined,
+          baseAmount: ing.amount ? `${ing.amount}${ing.unit ? ' ' + ing.unit : ''}` : 'As needed',
+        }))
+        instructions.value = [...plan.steps]
+      } else if (origin.value.startsWith('source-')) {
+        const source = session.sources.find((s) => s.id === origin.value)
+        if (source) {
+          name.value = source.title
+          description.value = ''
+          baseYield.value = source.baseYield || 2
+          multiplier.value = 0.5
+          ingredients.value = selectedFoods.value
+            .filter((f) => source.usedFoodKeys.includes(f.foodKey))
+            .map((f) => ({
+              id: f.id,
+              nameKey: f.nameKey,
+              foodKey: f.foodKey,
+              baseAmount: f.quantity + ' ' + f.unit,
+            }))
+          instructions.value = ['Prep the ingredients.', 'Cook according to the original recipe.']
+        }
+      }
+    }
+    if (!name.value && !routeSavedId.value) {
+      const saved = localStorage.getItem(draftKey.value)
+      if (saved) {
+        const draft = normalizeRecipeDraftData(JSON.parse(saved) as RecipeDraftData)
+        name.value = draft.name
+        description.value = draft.description
+        baseYield.value = draft.baseYield
+        multiplier.value = draft.multiplier
+        ingredients.value = draft.ingredients
+        instructions.value = draft.instructions
+      }
+    }
+  } catch {
+    loadError.value = 'Could not load recipe data.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  await hydrateFromServer()
+  await loadFromApi()
 })
 
 function scaledAmount(baseAmount: string): string {
@@ -180,21 +217,25 @@ function persistDraftLocally() {
   draftSaved.value = true
 }
 
-function saveToRecipes() {
+async function saveToRecipes() {
   clearTimeout(draftTimer)
-  const stored = saveRecipe({
-    id: savedRecipeId.value,
-    originType: source.value ? 'source' : 'ai-plan',
-    originId: origin.value,
-    sourceUrl: source.value?.url,
-    sourcePublisher: source.value?.publisher,
-    draft: currentDraft(),
-  })
-  savedRecipeId.value = stored.id
-  draftSaved.value = true
-  recipeSaved.value = true
-  localStorage.setItem(draftKey.value, JSON.stringify(currentDraft()))
-  void router.replace({ query: { ...route.query, savedId: stored.id } })
+  try {
+    const stored = await saveRecipe({
+      id: savedRecipeId.value,
+      originType: origin.value === 'ai-plan' ? 'ai-plan' : 'source',
+      originId: origin.value,
+      sourceUrl: undefined,
+      sourcePublisher: undefined,
+      draft: currentDraft(),
+    })
+    savedRecipeId.value = stored.id
+    draftSaved.value = true
+    recipeSaved.value = true
+    localStorage.setItem(draftKey.value, JSON.stringify(currentDraft()))
+    void router.replace({ query: { ...route.query, savedId: stored.id } })
+  } catch {
+    showNotice(t('recipeEditor.saveError') || 'Could not save recipe.')
+  }
 }
 
 onBeforeUnmount(() => {
@@ -203,10 +244,8 @@ onBeforeUnmount(() => {
   if (!recipeSaved.value) persistDraftLocally()
 })
 
-function startCooking() {
-  // FR-RCP-001: an unsaved draft is auto-saved through the normal save path
-  // before reconciliation opens, with no extra prompt.
-  if (!recipeSaved.value) saveToRecipes()
+async function startCooking() {
+  if (!recipeSaved.value) await saveToRecipes()
   cookOpen.value = true
 }
 
@@ -231,16 +270,18 @@ function onCooked() {
       <button type="button" :aria-label="t('storageItem.dismiss')" @click="notice = ''">×</button>
     </div>
 
-    <main class="editor-content">
+    <div v-if="loading" class="editor-loading">
+      <p>{{ t('recipeResults.loading') }}</p>
+    </div>
+    <div v-else-if="loadError" class="editor-error">
+      <p>{{ loadError }}</p>
+    </div>
+    <main v-else class="editor-content">
       <section class="provenance">
         <div>
           <span>{{ t('recipeEditor.provenance') }}</span>
-          <strong>{{ source ? source.publisher : t('recipeEditor.aiProvenance', { count: recipeSources.length }) }}</strong>
+          <strong>{{ origin === 'ai-plan' ? t('recipeEditor.aiProvenance', { count: 0 }) : t('recipes.origins.source') }}</strong>
         </div>
-        <a v-if="source" :href="source.url" target="_blank" rel="noopener noreferrer">
-          <AppIcon name="globe" :size="18" />
-          {{ t('recipeResults.website') }}
-        </a>
       </section>
 
       <section class="identity-fields">
@@ -639,6 +680,22 @@ textarea {
   min-width: var(--tap-target-min);
   min-height: var(--tap-target-min);
   font-size: 1.1rem;
+}
+
+.editor-loading,
+.editor-error {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+  place-items: center;
+}
+
+.editor-error {
+  color: var(--color-danger, #dc2626);
 }
 
 @media (max-width: 520px) {

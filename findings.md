@@ -1,5 +1,16 @@
 # Findings
 
+## AI provider integration
+
+- MiniMax M3 exposes no server-side web search, so LLM-only "find meal ideas" would fabricate source URLs; retrieval requires a real search API (Tavily chosen) or the deterministic fixture.
+- MiniMax Coding Plan keys authenticate on the OpenAI-compatible endpoint but are restricted to coding-plan models (M2 line) and the plan's terms limit use to coding tools; third-party app backends risk key suspension. A pay-as-you-go key is the correct choice for the app.
+- DeepSeek's `https://api.deepseek.com/v1/chat/completions` is OpenAI-compatible, so the structuring adapter works for any OpenAI-compatible provider; only `factory.py` + env vars change on a swap.
+- `Decimal.normalize()` can render quantities as `2E+2` inside generated search queries; a `format_quantity()` helper in `schemas.py` keeps query text human-readable.
+- The safe-fetch boundary re-validates every redirect hop after DNS resolution and rejects loopback/private/link-local/CGNAT/metadata targets; residual DNS-rebinding TOCTOU is documented in the module docstring.
+- Live adapters are selectable only through `RECIPE_PROVIDER_MODE=live` plus keys; missing keys raise at adapter build time, and fixture mode keeps the entire app usable offline.
+- The structuring prompt isolates retrieved/source text inside an untrusted `<data>` block so page content can never act as instructions (prompt-injection separation).
+- `ruff format --check` fails on pre-existing files, so the repo enforces only the configured `ruff check` rule set (E, F, I, UP, B, SIM); mypy and pytest remain the real gates.
+
 ## Docker Compose deployment
 
 - The repository already has a working multi-stage `Dockerfile`, a two-service `compose.yaml`, and an environment template, but README still says application implementation has not started.

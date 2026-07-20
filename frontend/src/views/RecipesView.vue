@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
@@ -11,25 +11,29 @@ type SortMode = 'recent' | 'name'
 
 const { t, locale } = useI18n()
 const router = useRouter()
-const { savedRecipes } = useRecipeStore()
+const { savedRecipes, hydrateFromServer, loading, error } = useRecipeStore()
 const query = ref('')
 const sortMode = ref<SortMode>('recent')
+
+onMounted(() => {
+  void hydrateFromServer()
+})
 
 const visibleRecipes = computed(() => {
   const normalized = query.value.trim().toLocaleLowerCase(locale.value)
   const matching = savedRecipes.value.filter((recipe) => {
-    const haystack = `${recipe.name} ${recipe.description}`.toLocaleLowerCase(locale.value)
+    const haystack = `${recipe.name} ${recipe.description ?? ''}`.toLocaleLowerCase(locale.value)
     return !normalized || haystack.includes(normalized)
   })
   return [...matching].sort((left, right) =>
     sortMode.value === 'name'
       ? left.name.localeCompare(right.name, locale.value)
-      : right.savedAt.localeCompare(left.savedAt),
+      : right.createdAt.localeCompare(left.createdAt),
   )
 })
 
 function openRecipe(recipe: SavedRecipe) {
-  void router.push({ path: '/recipes/editor', query: { origin: recipe.originId, savedId: recipe.id } })
+  void router.push({ path: '/recipes/editor', query: { origin: recipe.originId ?? recipe.id, savedId: recipe.id } })
 }
 </script>
 
@@ -61,7 +65,13 @@ function openRecipe(recipe: SavedRecipe) {
         </label>
       </div>
 
-      <div v-if="visibleRecipes.length" class="recipe-list stagger-in">
+      <div v-if="loading" class="recipes-loading">
+        <p>{{ t('recipeResults.loading') }}</p>
+      </div>
+      <div v-else-if="error" class="recipes-error">
+        <p>{{ error }}</p>
+      </div>
+      <div v-else-if="visibleRecipes.length" class="recipe-list stagger-in">
         <article v-for="recipe in visibleRecipes" :key="recipe.id" class="saved-recipe-card">
           <button class="saved-recipe-card__open" type="button" @click="openRecipe(recipe)">
             <span class="saved-recipe-card__tokens" :aria-label="t('recipes.ingredientPreview')">

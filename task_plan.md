@@ -1,6 +1,31 @@
 # Fridge Pal delivery work
 
-## Current task: Docker Compose deployment documentation
+## Current task: AI provider integration (recipe retrieval + structuring)
+
+### Goal
+Give Fridge Pal real AI capabilities behind the existing provider-neutral adapter contracts: live recipe-source retrieval via Tavily search and live recipe structuring (AI Cooking Plan / source analysis) via an OpenAI-compatible LLM endpoint (default DeepSeek), always with deterministic fixture fallback.
+
+### Scope decisions
+- Provider configuration is vendor-neutral: `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` and `SEARCH_API_KEY` / `SEARCH_BASE_URL`; provider swap touches only `backend/app/infrastructure/recipe/factory.py`.
+- Structuring default endpoint/model: `https://api.deepseek.com/v1`, `deepseek-chat` (user-supplied key; MiniMax Coding Plan key rejected on ToS/model-scope grounds).
+- Retrieval: Tavily live search (user-supplied key); the search query is composed from selected ingredient names, quantities, and serving count only — never expiry/urgency.
+- MiniMax M3 has no server-side web search, and an LLM must never invent source URLs; retrieval therefore needs a real search API or the fixture.
+- Fixture mode remains the default and must keep the whole app demo-able offline with no keys.
+- AI/provider output can propose structured data only; it never writes inventory. `Update storage` stays the mutation gate.
+- Live provider errors are classified (ERR-01..05), at most one automatic structured-output repair attempt, then visible failure with fixture-independent Storage still usable.
+- User has placed real keys in `backend/.env` (not committed).
+
+### Phases
+1. [complete] Decide providers (DeepSeek structuring, Tavily retrieval) and vendor-neutral env naming with the user.
+2. [complete] Implement Task 6 adapter layer: versioned schemas, retrieval/structuring protocols, Tavily + OpenAI-compatible live adapters, deterministic fixtures, SSRF safe-fetch boundary, factory, config rename.
+3. [complete] Contract + security tests (52 new; 193 total passing), Ruff and mypy clean; update `OQ-02` in PRD and Implementation Plan, `.env.example`, `compose.yaml`, `DEPLOYMENT.md`.
+4. [pending] Smoke-test live mode with the user's real keys (fixture-mode suite already green; live path so far only covered by mocked-HTTP tests).
+5. [pending] Task 7 — Recipe Results and AI Cooking Plan: search orchestration, persisted Rescue result snapshot, API endpoints, source cards with fixed seven-slot belt and dual actions, AI plan display with ingredient quantities, separate loading/error states.
+6. [pending] Continue ordered slices: Task 8 (canonical Recipe Editor + Saved Recipes), Task 9 (cooking/reconciliation/history/undo) per `docs/IMPLEMENTATION_PLAN.md`.
+
+---
+
+## Previous task: Docker Compose deployment documentation
 
 ### Goal
 Make a fresh private Linux server deployment repeatable through Docker Compose and document the real project structure for humans and agents.
