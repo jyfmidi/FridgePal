@@ -57,7 +57,7 @@ const options: LocationScope[] = props.includeAll ? ['all', ...locations] : loca
 .location-filter__option {
   display: inline-flex;
   min-width: 0;
-  min-height: 40px;
+  min-height: var(--tap-target-min);
   align-items: center;
   justify-content: center;
   gap: 5px;

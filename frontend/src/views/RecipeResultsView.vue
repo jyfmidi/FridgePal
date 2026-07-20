@@ -200,7 +200,7 @@ function editRecipe(origin: string) {
 }
 
 .results-error {
-  color: var(--color-danger, #dc2626);
+  color: var(--color-danger, #b91c1c);
 }
 
 .results-empty {

@@ -33,7 +33,7 @@ defineEmits<{ toggle: [] }>()
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  min-height: 36px;
+  min-height: var(--tap-target-min);
   padding: var(--space-1) var(--space-4);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);

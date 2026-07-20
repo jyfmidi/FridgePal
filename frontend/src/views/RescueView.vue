@@ -211,4 +211,10 @@ function openRecent(foodIds: string[]) {
   font-size: var(--font-size-xl);
   line-height: 1;
 }
+
+@media (min-width: 880px) {
+  .recent-card-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 </style>

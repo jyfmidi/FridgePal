@@ -695,7 +695,7 @@ textarea {
 }
 
 .editor-error {
-  color: var(--color-danger, #dc2626);
+  color: var(--color-danger, #b91c1c);
 }
 
 @media (max-width: 520px) {

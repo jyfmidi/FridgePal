@@ -326,4 +326,18 @@ onMounted(loadHistory)
   display: flex;
   align-items: center;
 }
+
+@media (min-width: 880px) {
+  .history-event {
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .history-event__description {
+    font-size: var(--font-size-lg);
+  }
+
+  .history-list {
+    gap: var(--space-3);
+  }
+}
 </style>
