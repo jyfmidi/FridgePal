@@ -11,10 +11,13 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "sqlite:///./fridgital.db"
-    minimax_api_key: str = ""
-    minimax_base_url: str = "https://api.minimax.io/v1"
-    minimax_model: str = "MiniMax-M3"
-    recipe_provider_mode: str = "fixture"
+    # Provider-neutral recipe adapters (vendors are swappable deployment config).
+    llm_api_key: str = ""
+    llm_base_url: str = "https://api.deepseek.com/v1"
+    llm_model: str = "deepseek-chat"
+    search_api_key: str = ""
+    search_base_url: str = "https://api.tavily.com"
+    recipe_provider_mode: str = "fixture"  # "fixture" | "live"
     app_timezone: str = "Asia/Shanghai"
     app_default_locale: str = "en"
     seed_demo_data: bool = True

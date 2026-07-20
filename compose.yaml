@@ -35,9 +35,11 @@ services:
     environment:
       DATABASE_URL: mysql+pymysql://${MYSQL_USER:?set MYSQL_USER in .env}:${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}@db:3306/${MYSQL_DATABASE:-fridgital}
       RECIPE_PROVIDER_MODE: ${RECIPE_PROVIDER_MODE:-fixture}
-      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
-      MINIMAX_BASE_URL: ${MINIMAX_BASE_URL:-https://api.minimax.io/v1}
-      MINIMAX_MODEL: ${MINIMAX_MODEL:-MiniMax-M3}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+      SEARCH_API_KEY: ${SEARCH_API_KEY:-}
+      SEARCH_BASE_URL: ${SEARCH_BASE_URL:-https://api.tavily.com}
       APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Shanghai}
       APP_DEFAULT_LOCALE: ${APP_DEFAULT_LOCALE:-en}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}

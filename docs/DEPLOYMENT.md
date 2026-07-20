@@ -86,7 +86,11 @@ Review these settings:
 | `MYSQL_USER` | Dedicated application database user. Do not use `root`. |
 | `MYSQL_PASSWORD` | Long, random, URL-safe secret. Required. |
 | `RECIPE_PROVIDER_MODE` | Keep `fixture` for deterministic offline recipe data; use `live` only with approved provider credentials. |
-| `MINIMAX_API_KEY` | Leave empty in fixture mode. Never expose it to the frontend. |
+| `LLM_API_KEY` | Recipe-structuring model key (OpenAI-compatible endpoint). Leave empty in fixture mode. Never expose it to the frontend. |
+| `LLM_BASE_URL` | OpenAI-compatible chat-completions base URL, default `https://api.deepseek.com/v1`. |
+| `LLM_MODEL` | Structuring model ID, default `deepseek-chat`. |
+| `SEARCH_API_KEY` | Recipe source search key. Leave empty in fixture mode. Never expose it to the frontend. |
+| `SEARCH_BASE_URL` | Search API base URL, default `https://api.tavily.com`. |
 | `APP_TIMEZONE` | User-observable calendar timezone, for example `Asia/Shanghai`. |
 | `APP_DEFAULT_LOCALE` | Initial locale, `en` or `zh-CN`. |
 | `SEED_DEMO_DATA` | Keep `true` for the current MVP demo inventory; set `false` for an empty installation. |
