@@ -101,6 +101,23 @@ export const i18n = createI18n({
         emptyDescription: 'Choose a meal idea and save it from the Recipe Editor.', findIdeas: 'Find meal ideas',
         origins: { 'ai-plan': 'AI Cooking Plan', source: 'Recipe source', personal: 'Personal recipe' },
       },
+      history: {
+        title: 'History', empty: 'No activity yet.', loadError: 'Could not load history.',
+        undo: 'Undo', undoing: 'Undoing…', undoError: 'Could not undo. Try again.',
+        undoSuccess: 'Undone', eventTypes: {
+          CHECK_IN: 'Added', EDIT: 'Edited', MOVE: 'Moved',
+          MANUAL_CONSUMPTION: 'Used', COOKING: 'Cooked', DISCARD: 'Discarded', REVERSAL: 'Reversed',
+        },
+        descriptions: {
+          addedTo: 'Added {quantity} {unit} to {location}',
+          usedFrom: 'Used {quantity} {unit} from {location}',
+          discardedFrom: 'Discarded {quantity} {unit} from {location}',
+          cooked: 'Cooked {name}',
+          reversed: 'Reversed {type}',
+          edited: 'Edited details',
+          moved: 'Moved location',
+        },
+      },
       foods: {
         spinach: 'Spinach', yogurt: 'Yogurt', chickenBreast: 'Chicken breast', mushrooms: 'Mushrooms', broccoli: 'Broccoli', tofu: 'Tofu', lemon: 'Lemon', eggs: 'Eggs', milk: 'Milk', carrots: 'Carrots', tomatoes: 'Tomatoes', onion: 'Onion', garlic: 'Garlic', rice: 'Rice', pasta: 'Pasta', frozenPeas: 'Frozen peas',
       },
@@ -200,6 +217,23 @@ export const i18n = createI18n({
         lastCooked: '上次使用 {count}× 份量', emptyTitle: '还没有收藏菜谱',
         emptyDescription: '先选择一个菜谱灵感，再从菜谱编辑器中保存。', findIdeas: '寻找菜谱灵感',
         origins: { 'ai-plan': 'AI 烹饪计划', source: '菜谱来源', personal: '个人菜谱' },
+      },
+      history: {
+        title: '记录', empty: '暂无操作记录。', loadError: '无法加载记录。',
+        undo: '撤销', undoing: '正在撤销…', undoError: '撤销失败，请重试。',
+        undoSuccess: '已撤销', eventTypes: {
+          CHECK_IN: '添加', EDIT: '编辑', MOVE: '移动',
+          MANUAL_CONSUMPTION: '使用', COOKING: '烹饪', DISCARD: '丢弃', REVERSAL: '撤销',
+        },
+        descriptions: {
+          addedTo: '添加了 {quantity} {unit} 到{location}',
+          usedFrom: '从{location}使用了 {quantity} {unit}',
+          discardedFrom: '从{location}丢弃了 {quantity} {unit}',
+          cooked: '烹饪了{name}',
+          reversed: '撤销了{type}',
+          edited: '编辑了详情',
+          moved: '移动了位置',
+        },
       },
       foods: {
         spinach: '菠菜', yogurt: '酸奶', chickenBreast: '鸡胸肉', mushrooms: '蘑菇', broccoli: '西兰花', tofu: '豆腐', lemon: '柠檬', eggs: '鸡蛋', milk: '牛奶', carrots: '胡萝卜', tomatoes: '番茄', onion: '洋葱', garlic: '大蒜', rice: '大米', pasta: '意面', frozenPeas: '冷冻豌豆',

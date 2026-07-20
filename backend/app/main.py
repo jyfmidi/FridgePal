@@ -11,6 +11,7 @@ from starlette.responses import Response
 from starlette.types import Scope
 
 from app.api.health import router as health_router
+from app.api.history import build_history_router
 from app.api.inventory import build_inventory_router
 from app.api.recipes import build_recipe_router
 from app.api.rescue import build_rescue_router
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
             "Recipe adapters unavailable; rescue search disabled."
         )
     app.include_router(build_recipe_router(get_session), prefix="/api")
+    app.include_router(build_history_router(get_session), prefix="/api")
     app.state.database_engine = engine
 
     static_dir = os.environ.get("STATIC_DIR", "static")

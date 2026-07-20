@@ -3,6 +3,7 @@ export type AppIconName =
   | 'add'
   | 'calendar'
   | 'calendar-check'
+  | 'chef'
   | 'edit'
   | 'globe'
   | 'grid'
@@ -16,6 +17,8 @@ export type AppIconName =
   | 'storage'
   | 'swap'
   | 'tombstone'
+  | 'trash'
+  | 'undo'
   | 'unit'
 
 withDefaults(defineProps<{ name: AppIconName; size?: number }>(), { size: 20 })
@@ -96,6 +99,24 @@ withDefaults(defineProps<{ name: AppIconName; size?: number }>(), { size: 20 })
     <template v-else-if="name === 'storage'">
       <rect x="4" y="3" width="16" height="18" rx="3" />
       <path d="M4 10h16M8 6.5h.01M8 14v3" />
+    </template>
+    <template v-else-if="name === 'chef'">
+      <path d="M6 13c0 4 2.7 6 6 6s6-2 6-6" />
+      <path d="M8 13V8a4 4 0 0 1 8 0v5" />
+      <path d="M5 8a3 3 0 0 1 3-3 3 3 0 0 1 3 3" />
+      <path d="M13 8a3 3 0 0 1 3-3 3 3 0 0 1 3 3" />
+      <path d="M9 18v3M15 18v3" />
+    </template>
+    <template v-else-if="name === 'trash'">
+      <path d="M5 7v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7" />
+      <path d="M3 7h18" />
+      <path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" />
+      <path d="M10 11v6M14 11v6" />
+    </template>
+    <template v-else-if="name === 'undo'">
+      <path d="M3 10h10a5 5 0 0 1 5 5v1" />
+      <path d="M3 10l4-4M3 10l4 4" />
+      <path d="M13 6H8a4 4 0 0 0-4 4v0a4 4 0 0 0 4 4h5" />
     </template>
   </svg>
 </template>
