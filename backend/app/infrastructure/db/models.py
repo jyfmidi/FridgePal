@@ -67,3 +67,39 @@ class ActivityEventRow(Base):
     display_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON)
     idempotency_key: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class RescueSessionRow(Base):
+    __tablename__ = "rescue_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    status: Mapped[str] = mapped_column(String(20), default="SEARCHED", index=True)
+    selected_foods: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    servings: Mapped[int] = mapped_column()
+    locale: Mapped[str] = mapped_column(String(10), default="en")
+    source_results: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    ai_plan: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    ai_plan_error: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    searched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SavedRecipeRow(Base):
+    __tablename__ = "saved_recipes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    base_yield: Mapped[int] = mapped_column()
+    multiplier: Mapped[float | None] = mapped_column(nullable=True)
+    ingredients: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    instructions: Mapped[list[str]] = mapped_column(JSON)
+    origin_type: Mapped[str] = mapped_column(String(20), default="personal")
+    origin_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    source_publisher: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    last_cooked_portion: Mapped[float | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )

@@ -12,10 +12,13 @@ from starlette.types import Scope
 
 from app.api.health import router as health_router
 from app.api.inventory import build_inventory_router
+from app.api.recipes import build_recipe_router
+from app.api.rescue import build_rescue_router
 from app.config import get_settings
 from app.infrastructure.db import models as _models  # noqa: F401
 from app.infrastructure.db.demo_seed import normalize_legacy_inventory_units, seed_demo_inventory
 from app.infrastructure.db.session import create_database, session_dependency
+from app.infrastructure.recipe.factory import build_recipe_adapters
 
 APP_VERSION = "0.1.0"
 
@@ -51,6 +54,14 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Fridge Pal", version=APP_VERSION)
     app.include_router(health_router, prefix="/api")
     app.include_router(build_inventory_router(get_session), prefix="/api")
+    try:
+        recipe_adapters = build_recipe_adapters(settings)
+        app.include_router(build_rescue_router(get_session, recipe_adapters), prefix="/api")
+    except ValueError:
+        logging.getLogger(__name__).warning(
+            "Recipe adapters unavailable; rescue search disabled."
+        )
+    app.include_router(build_recipe_router(get_session), prefix="/api")
     app.state.database_engine = engine
 
     static_dir = os.environ.get("STATIC_DIR", "static")

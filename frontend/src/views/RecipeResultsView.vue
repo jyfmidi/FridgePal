@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
@@ -7,7 +7,7 @@ import AppIcon from '../components/AppIcon.vue'
 import AppTaskHeader from '../components/AppTaskHeader.vue'
 import RecipeMatchBelt from '../components/recipes/RecipeMatchBelt.vue'
 import SelectionRail from '../components/rescue/SelectionRail.vue'
-import { buildPlanIngredients, recipeSources } from '../features/recipes/fixtures'
+import { searchRecipes, type AiPlan, type RescueSource } from '../api/rescue'
 import { useRescueStore } from '../features/rescue/rescueStore'
 import { useInventoryStore } from '../features/storage/inventoryStore'
 
@@ -15,14 +15,47 @@ const { t } = useI18n()
 const router = useRouter()
 const { inventory, hydrateFromServer } = useInventoryStore()
 const { selectedFoods } = useRescueStore(inventory)
-const ingredients = computed(() => buildPlanIngredients(selectedFoods.value))
 
-onMounted(() => {
-  void hydrateFromServer()
+const loading = ref(false)
+const error = ref<string | null>(null)
+const sources = ref<RescueSource[]>([])
+const aiPlan = ref<AiPlan | null>(null)
+const aiPlanError = ref<string | null>(null)
+const searchSessionId = ref<string>('')
+
+async function performSearch() {
+  loading.value = true
+  error.value = null
+
+  try {
+    const selectedFoodInputs = selectedFoods.value.map((food) => ({
+      foodKey: food.foodKey,
+      names: food.names ?? { en: food.nameKey },
+      quantity: String(food.quantity),
+      unit: food.unit,
+      location: food.location.toUpperCase(),
+      urgency: food.urgency,
+    }))
+
+    const response = await searchRecipes(selectedFoodInputs, 2, 'en')
+    sources.value = response.sources
+    aiPlan.value = response.aiPlan
+    aiPlanError.value = response.aiPlanError
+    searchSessionId.value = response.sessionId
+  } catch {
+    error.value = t('recipeResults.searchError')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  await hydrateFromServer()
+  await performSearch()
 })
 
 function editRecipe(origin: string) {
-  void router.push({ path: '/recipes/editor', query: { origin } })
+  void router.push({ path: '/recipes/editor', query: { origin, sessionId: searchSessionId.value } })
 }
 </script>
 
@@ -46,72 +79,95 @@ function editRecipe(origin: string) {
         <SelectionRail :foods="selectedFoods" />
       </section>
 
-      <section class="source-section stagger-in" aria-labelledby="sources-title">
-        <div class="section-copy">
-          <h2 id="sources-title">{{ t('recipeResults.sources') }}</h2>
-          <p>{{ t('recipeResults.sourcesHint') }}</p>
-        </div>
+      <div v-if="loading" class="results-loading">
+        <p>{{ t('recipeResults.loading') }}</p>
+      </div>
 
-        <article v-for="source in recipeSources" :key="source.id" class="source-card">
-          <div class="source-card__topline">
-            <span>{{ source.publisher }}</span>
-            <span>{{ source.domain }}</span>
+      <div v-else-if="error" class="results-error">
+        <p>{{ error }}</p>
+        <AppButton @click="performSearch">{{ t('recipeResults.retry') }}</AppButton>
+      </div>
+
+      <div v-else-if="sources.length === 0" class="results-empty">
+        <p>{{ t('recipeResults.noResults') }}</p>
+        <AppButton @click="router.push('/rescue/choose')">{{ t('recipeResults.changeFoods') }}</AppButton>
+      </div>
+
+      <template v-else>
+        <section class="source-section stagger-in" aria-labelledby="sources-title">
+          <div class="section-copy">
+            <h2 id="sources-title">{{ t('recipeResults.sources') }}</h2>
+            <p>{{ t('recipeResults.sourcesHint') }}</p>
           </div>
-          <h3>{{ source.title }}</h3>
-          <RecipeMatchBelt :foods="selectedFoods" :used-food-keys="source.usedFoodKeys" />
-          <div class="source-card__actions">
-            <a :href="source.url" target="_blank" rel="noopener noreferrer">
-              <AppIcon name="globe" :size="18" />
-              {{ t('recipeResults.website') }}
-            </a>
-            <AppButton size="small" @click="editRecipe(source.id)">
-              <AppIcon name="edit" :size="17" />
-              {{ t('recipeResults.editRecipe') }}
-            </AppButton>
+
+          <article v-for="source in sources" :key="source.id" class="source-card">
+            <div class="source-card__topline">
+              <span>{{ source.publisher }}</span>
+              <span>{{ source.domain }}</span>
+            </div>
+            <h3>{{ source.title }}</h3>
+            <RecipeMatchBelt :foods="selectedFoods" :used-food-keys="source.usedFoodKeys" />
+            <div class="source-card__actions">
+              <a :href="source.url" target="_blank" rel="noopener noreferrer">
+                <AppIcon name="globe" :size="18" />
+                {{ t('recipeResults.website') }}
+              </a>
+              <AppButton size="small" @click="editRecipe(source.id)">
+                <AppIcon name="edit" :size="17" />
+                {{ t('recipeResults.editRecipe') }}
+              </AppButton>
+            </div>
+          </article>
+        </section>
+
+        <section class="ai-plan" aria-labelledby="ai-plan-title">
+          <div class="ai-plan__eyebrow">
+            <span aria-hidden="true">✦</span>
+            <strong>{{ t('recipeResults.aiLabel') }}</strong>
           </div>
-        </article>
-      </section>
 
-      <section class="ai-plan" aria-labelledby="ai-plan-title">
-        <div class="ai-plan__eyebrow">
-          <span aria-hidden="true">✦</span>
-          <strong>{{ t('recipeResults.aiLabel') }}</strong>
-        </div>
-        <h2 id="ai-plan-title">{{ t('recipeResults.aiTitle') }}</h2>
-        <p class="ai-plan__description">{{ t('recipeResults.aiDescription') }}</p>
+          <template v-if="aiPlan">
+            <h2 id="ai-plan-title">{{ aiPlan.title }}</h2>
+            <p v-if="aiPlan.description" class="ai-plan__description">{{ aiPlan.description }}</p>
 
-        <div class="ai-plan__yield">
-          <span>{{ t('recipeResults.baseYield') }}</span>
-          <strong>{{ t('recipeResults.servings', { count: 2 }) }}</strong>
-        </div>
+            <div class="ai-plan__yield">
+              <span>{{ t('recipeResults.baseYield') }}</span>
+              <strong>{{ t('recipeResults.servings', { count: aiPlan.baseYield }) }}</strong>
+            </div>
 
-        <h3>{{ t('recipeResults.ingredients') }}</h3>
-        <div class="ingredient-grid">
-          <div v-for="ingredient in ingredients" :key="ingredient.id">
-            <span>{{ t(ingredient.nameKey) }}</span>
-            <strong>{{ ingredient.amount }}</strong>
-          </div>
-          <div class="ingredient-grid__pantry">
-            <span>{{ t('recipeResults.pantryStaples') }}</span>
-            <strong>Oil, salt, pepper</strong>
-          </div>
-        </div>
+            <h3>{{ t('recipeResults.ingredients') }}</h3>
+            <div class="ingredient-grid">
+              <div v-for="(ingredient, index) in aiPlan.ingredients" :key="index">
+                <span>{{ ingredient.originalText }}</span>
+                <strong>
+                  {{ ingredient.amount || '' }}{{ ingredient.unit ? ` ${ingredient.unit}` : '' }}
+                </strong>
+              </div>
+            </div>
 
-        <h3>{{ t('recipeResults.steps') }}</h3>
-        <ol class="step-list">
-          <li>{{ t('recipeResults.stepOne') }}</li>
-          <li>{{ t('recipeResults.stepTwo') }}</li>
-          <li>{{ t('recipeResults.stepThree') }}</li>
-        </ol>
+            <h3>{{ t('recipeResults.steps') }}</h3>
+            <ol class="step-list">
+              <li v-for="(step, index) in aiPlan.steps" :key="index">{{ step }}</li>
+            </ol>
 
-        <div class="ai-plan__footer">
-          <span>{{ t('recipeResults.sourceCount', { count: recipeSources.length }) }}</span>
-          <AppButton @click="editRecipe('ai-plan')">
-            <AppIcon name="edit" :size="18" />
-            {{ t('recipeResults.editRecipe') }}
-          </AppButton>
-        </div>
-      </section>
+            <div class="ai-plan__footer">
+              <span>{{ t('recipeResults.sourceCount', { count: sources.length }) }}</span>
+              <AppButton @click="editRecipe('ai-plan')">
+                <AppIcon name="edit" :size="18" />
+                {{ t('recipeResults.editRecipe') }}
+              </AppButton>
+            </div>
+          </template>
+
+          <template v-else>
+            <h2 id="ai-plan-title">{{ t('recipeResults.aiTitle') }}</h2>
+            <p class="ai-plan__description">{{ t('recipeResults.aiDescription') }}</p>
+            <div v-if="aiPlanError" class="ai-plan-missing">
+              <p>{{ t('recipeResults.aiPlanError') }}</p>
+            </div>
+          </template>
+        </section>
+      </template>
     </main>
   </div>
 </template>
@@ -128,6 +184,27 @@ function editRecipe(origin: string) {
   display: grid;
   gap: var(--space-8);
   padding-top: var(--space-5);
+}
+
+.results-loading,
+.results-error,
+.results-empty {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+  place-items: center;
+}
+
+.results-error {
+  color: var(--color-danger, #dc2626);
+}
+
+.results-empty {
+  color: var(--color-muted);
 }
 
 .header-action {
@@ -292,6 +369,14 @@ function editRecipe(origin: string) {
 .ai-plan__footer {
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-primary-soft);
+}
+
+.ai-plan-missing {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgb(255 255 255 / 0.72);
+  text-align: center;
+  color: var(--color-muted);
 }
 
 @media (min-width: 700px) {
