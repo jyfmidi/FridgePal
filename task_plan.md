@@ -1,6 +1,27 @@
 # Fridge Pal delivery work
 
-## Current task: AI provider integration (recipe retrieval + structuring)
+## Completed: Tasks 6–11 (Golden Loop fully implemented)
+
+### Final state
+- 219 backend tests passing, 43 source files mypy-clean, 137 frontend modules building clean.
+- All P0 features implemented: Storage, Add Food, Rescue selection, Recipe Results (AI + sources), Recipe Editor, Saved Recipes, Cooking reconciliation, History + Undo.
+- Docker Compose config validated; secret scan clean; full release gate passes.
+
+### Remaining open items
+- Live-mode smoke test with real DeepSeek/Tavily keys (fixture-mode suite is green; live path covered by mocked-HTTP tests only).
+- Task 10 polish can continue further (more e2e coverage, visual regression baselines, performance profiling).
+
+### Phases (all complete)
+1. [complete] Task 6 — Recipe provider adapter layer (schemas, retrieval/structuring protocols, Tavily + OpenAI-compatible adapters, fixtures, SSRF safe-fetch, factory, errors). 52 tests.
+2. [complete] Task 7 — Rescue search pipeline + Results UI (RescueSessionRow, RescueService, API, frontend API-driven RecipeResultsView with loading/error/empty). 6 tests.
+3. [complete] Task 8 — Server-backed Saved Recipes + Recipe Editor wiring (SavedRecipeRow, RecipeService CRUD, API, recipeStore localStorage→API, RecipeEditorView fetches rescue session). 7 tests.
+4. [complete] Task 9 — History timeline + compensating Undo (HistoryService, undo_activity with compensating transactions, API, HistoryView replacing ComingSoonView). 7 tests.
+5. [complete] Task 10 — Accessibility/responsive polish (skip-to-content link, touch target fixes, color contrast fix, desktop media queries).
+6. [complete] Task 11 — Docker/Operations/Release Gate (compose config valid, full test suite green, secret scan clean).
+
+---
+
+## Previous task: AI provider integration (recipe retrieval + structuring)
 
 ### Goal
 Give Fridge Pal real AI capabilities behind the existing provider-neutral adapter contracts: live recipe-source retrieval via Tavily search and live recipe structuring (AI Cooking Plan / source analysis) via an OpenAI-compatible LLM endpoint (default DeepSeek), always with deterministic fixture fallback.

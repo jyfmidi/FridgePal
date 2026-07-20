@@ -1,6 +1,17 @@
 # Progress
 
-## 2026-07-20
+## 2026-07-20 (Tasks 6–11)
+- Implemented Task 6 (recipe provider adapter layer), Task 7 (rescue search pipeline + results UI), Task 8 (server-backed saved recipes + recipe editor wiring), Task 9 (history timeline + compensating undo), and Task 10 (accessibility/responsive polish).
+- Task 6: versioned schemas, retrieval/structuring protocols, Tavily + OpenAI-compatible live adapters, deterministic fixtures, SSRF safe-fetch, classified errors (ERR-01..05), factory. 52 contract/security tests.
+- Task 7: `RescueSessionRow` persistence, `RescueService` (retrieval→structuring→snapshot), `POST /api/rescue/search`, `GET /api/rescue/{id}`. Frontend `RecipeResultsView` replaced fixtures with real API + loading/error/empty states. 6 contract tests.
+- Task 8: `SavedRecipeRow`, `RecipeService` CRUD, `GET/POST/PATCH /api/recipes`. Frontend `recipeStore` migrated from localStorage to API. `RecipeEditorView` fetches rescue session data and uses API for save. `RecipesView` API-backed. 7 contract tests.
+- Task 9: History service with `list_history()` and `undo_activity()` (compensating transactions restoring lot quantities/statuses). `GET /api/history`, `POST /api/history/{id}/undo` with idempotent replay. Frontend `HistoryView` replacing `ComingSoonView`, Undo button, chef/trash/undo icons. 7 contract tests.
+- Task 10: Skip-to-content link, touch target fixes (AppChip 36px→44px, LocationFilterBar 40px→44px), color contrast fallback fix (#dc2626→#b91c1c), desktop @media queries for HistoryView and RescueView, `skipToContent` i18n keys.
+- Task 11: Docker Compose config validation passes. Full release gate: 219 backend tests, Ruff, mypy, frontend ESLint, vue-tsc, Vite build (137 modules), compose config — all clean. Secret scan: no provider URLs or keys in client bundle; no hardcoded secrets in backend; `.env.example` has no real secrets.
+- Final state: 219 backend tests passing, 43 source files mypy-clean, 137 frontend modules building clean. Golden Loop (Capture→Notice→Select→Research→Edit→Cook→Reconcile→History/Undo) fully implemented.
+- Committed in 5 atomic commits: Task 6 (`919e856`), Task 7 (`d6ce4a9`), Task 8 (`a85f923`), Task 9 (`a16ccdf`), Task 10 (`0dc5c06`).
+
+## 2026-07-20 (earlier)
 - User decided the AI provider strategy: DeepSeek for recipe structuring (user has a pay-as-you-go key), Tavily for recipe-source retrieval (user has a key); MiniMax Coding Plan key rejected because Coding Plan keys are model-scoped and ToS-limited to coding tools.
 - User required vendor-neutral configuration names so providers can be swapped later, and ruled that retrieval queries use ingredient names, quantities, and serving count only — not expiry/urgency.
 - Implemented Task 6 adapter layer under `backend/app/infrastructure/recipe/`: versioned pydantic schemas, retrieval/structuring Protocols, `TavilyRetrievalAdapter`, `OpenAICompatibleStructuringAdapter` (one repair attempt, prompt-injection separation), deterministic fixture adapters, SSRF `safe_fetch` boundary, and a settings-driven `factory.py`.
