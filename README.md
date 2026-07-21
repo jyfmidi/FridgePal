@@ -4,6 +4,8 @@
 
 ![Fridge Pal hackathon thumbnail](docs/visuals/fridge-pal-hackathon-thumbnail-v2.png)
 
+**Trying the project? Start with the [five-minute User Guide](USER_GUIDE.md).**
+
 Fridge Pal is a friendly food tracker and AI cooking companion for people who do not want good ingredients to disappear into the back of the fridge.
 
 It keeps a clear record of food across the fridge, freezer, and pantry, brings soon-to-expire ingredients to the front, and suggests practical meals that help use them up.
@@ -188,6 +190,7 @@ I also want to explore a dedicated seasonings section and community features suc
 
 ## Documentation
 
+- [User Guide](USER_GUIDE.md)
 - [Product Requirements](docs/PRODUCT_REQUIREMENTS.md)
 - [Domain and AI Contracts](docs/DOMAIN_AND_AI_CONTRACTS.md)
 - [UX Specification](docs/UX_SPEC.md)
