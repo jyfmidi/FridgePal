@@ -108,6 +108,7 @@ export async function cookingPreview(items: CookingPreviewItem[]): Promise<Cooki
   const response = await fetch('/api/cooking/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ items }),
   })
   if (!response.ok) throw new Error(`Cooking preview failed with status ${response.status}`)
@@ -120,6 +121,7 @@ export async function cookingCommit(
   const response = await fetch('/api/cooking/commit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(input),
   })
   if (!response.ok) {
@@ -145,6 +147,7 @@ export async function persistCheckIn(input: CheckInInput, idempotencyKey: string
   const response = await fetch('/api/inventory/check-in', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({
       idempotencyKey,
       foodKey: input.foodKey,
@@ -164,7 +167,7 @@ export async function persistCheckIn(input: CheckInInput, idempotencyKey: string
 }
 
 export async function fetchStorage(): Promise<StorageResponse> {
-  const response = await fetch('/api/storage')
+  const response = await fetch('/api/storage', { credentials: 'include' })
   if (!response.ok) throw new Error(`Storage fetch failed with status ${response.status}`)
   return response.json() as Promise<StorageResponse>
 }
@@ -172,7 +175,7 @@ export async function fetchStorage(): Promise<StorageResponse> {
 /** Lots for one food/location pair, in server (FEFO) order, excluding discarded lots. */
 export async function fetchLots(foodKey: string, location: ApiLocation): Promise<InventoryLot[]> {
   const params = new URLSearchParams({ foodKey, location })
-  const response = await fetch(`/api/inventory/lots?${params}`)
+  const response = await fetch(`/api/inventory/lots?${params}`, { credentials: 'include' })
   if (!response.ok) throw new Error(`Lots fetch failed with status ${response.status}`)
   const body = (await response.json()) as LotsResponse
   return body.lots
@@ -182,6 +185,7 @@ export async function patchLot(lotId: string, input: PatchLotInput, idempotencyK
   const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ idempotencyKey, ...input }),
   })
   if (!response.ok) throw new Error(`Lot update failed with status ${response.status}`)
@@ -195,6 +199,7 @@ export async function reduceInventory(
   const response = await fetch('/api/inventory/reduce', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ idempotencyKey, ...input }),
   })
   if (!response.ok) {
@@ -211,6 +216,7 @@ export async function discardLot(lotId: string, idempotencyKey: string): Promise
   const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/discard`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ idempotencyKey }),
   })
   if (!response.ok) throw new Error(`Lot discard failed with status ${response.status}`)

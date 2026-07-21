@@ -15,7 +15,7 @@ export interface UndoResponse {
 }
 
 export async function fetchHistory(limit: number = 50): Promise<HistoryEvent[]> {
-  const response = await fetch(`/api/history?limit=${limit}`)
+  const response = await fetch(`/api/history?limit=${limit}`, { credentials: 'include' })
   if (!response.ok) throw new Error(`History fetch failed with status ${response.status}`)
   const body = await response.json() as { events: HistoryEvent[] }
   return body.events
@@ -25,6 +25,7 @@ export async function undoEvent(eventId: string, idempotencyKey: string): Promis
   const response = await fetch(`/api/history/${encodeURIComponent(eventId)}/undo`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ idempotencyKey }),
   })
   if (!response.ok) {

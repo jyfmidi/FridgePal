@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppNav from './components/AppNav.vue'
 import FridgePalLoader from './components/FridgePalLoader.vue'
+import { useAuth } from './features/auth/authStore'
 import { useRescueStore } from './features/rescue/rescueStore'
 import { useInventoryStore } from './features/storage/inventoryStore'
 
@@ -29,6 +30,7 @@ router.beforeEach((to, from) => {
 
 const { inventory, hydrateFromServer } = useInventoryStore()
 const { searching, searchResult, latestSessionId } = useRescueStore(inventory)
+const { isAuthenticated, currentUser, init: initAuth, logout } = useAuth()
 
 const showCompleteDialog = ref(false)
 const initialHydrationPending = ref(true)
@@ -40,13 +42,24 @@ onMounted(() => {
     showInitialLoader.value = true
   }, 150)
 
-  void hydrateFromServer().finally(() => {
-    if (initialLoaderTimer !== undefined) {
-      clearTimeout(initialLoaderTimer)
-      initialLoaderTimer = undefined
+  void initAuth().then(() => {
+    if (!isAuthenticated.value) {
+      if (initialLoaderTimer !== undefined) {
+        clearTimeout(initialLoaderTimer)
+        initialLoaderTimer = undefined
+      }
+      showInitialLoader.value = false
+      initialHydrationPending.value = false
+      return
     }
-    showInitialLoader.value = false
-    initialHydrationPending.value = false
+    void hydrateFromServer().finally(() => {
+      if (initialLoaderTimer !== undefined) {
+        clearTimeout(initialLoaderTimer)
+        initialLoaderTimer = undefined
+      }
+      showInitialLoader.value = false
+      initialHydrationPending.value = false
+    })
   })
 })
 
@@ -69,11 +82,20 @@ function goToMealIdea() {
     void router.push({ path: '/history', query: { tab: 'meal-ideas', mealIdeaNewId: latestSessionId.value } })
   }
 }
+
+async function handleLogout() {
+  await logout()
+  router.push('/login')
+}
 </script>
 
 <template>
   <div class="app-shell" :class="{ 'app-shell--task': hideNavigation }">
     <a href="#main-content" class="skip-link">{{ t('common.skipToContent') }}</a>
+    <div v-if="isAuthenticated && !hideNavigation" class="user-widget">
+      <span class="user-widget__name">{{ currentUser?.username }}</span>
+      <button class="user-widget__logout" @click="handleLogout">Logout</button>
+    </div>
     <AppNav v-if="!hideNavigation" />
     <main id="main-content" class="app-content">
       <FridgePalLoader
@@ -125,6 +147,44 @@ function goToMealIdea() {
 
 .app-shell {
   min-height: 100vh;
+}
+
+.user-widget {
+  position: fixed;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+}
+
+.user-widget__name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-ink-soft);
+}
+
+.user-widget__logout {
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+  cursor: pointer;
+  transition: background-color var(--duration-base) var(--ease-standard);
+}
+
+.user-widget__logout:hover {
+  background: var(--color-primary-hover);
 }
 
 @media (min-width: 880px) {

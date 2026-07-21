@@ -42,14 +42,14 @@ export interface SaveRecipeResponse {
 }
 
 export async function fetchRecipes(): Promise<SavedRecipe[]> {
-  const response = await fetch('/api/recipes')
+  const response = await fetch('/api/recipes', { credentials: 'include' })
   if (!response.ok) throw new Error(`Recipes fetch failed with status ${response.status}`)
   const body = await response.json() as { recipes: SavedRecipe[] }
   return body.recipes
 }
 
 export async function fetchRecipe(id: string): Promise<SavedRecipe> {
-  const response = await fetch(`/api/recipes/${encodeURIComponent(id)}`)
+  const response = await fetch(`/api/recipes/${encodeURIComponent(id)}`, { credentials: 'include' })
   if (!response.ok) throw new Error(`Recipe fetch failed with status ${response.status}`)
   return response.json() as Promise<SavedRecipe>
 }
@@ -58,6 +58,7 @@ export async function saveRecipe(input: SaveRecipeInput): Promise<SaveRecipeResp
   const response = await fetch('/api/recipes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(input),
   })
   if (!response.ok) throw new Error(`Recipe save failed with status ${response.status}`)
@@ -68,6 +69,7 @@ export async function updateRecipe(id: string, input: SaveRecipeInput): Promise<
   const response = await fetch(`/api/recipes/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(input),
   })
   if (!response.ok) throw new Error(`Recipe update failed with status ${response.status}`)
