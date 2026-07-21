@@ -44,8 +44,10 @@ withDefaults(defineProps<{
 
 <style scoped>
 .fridge-pal-loader {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   color: var(--color-muted);
   text-align: center;
 }
