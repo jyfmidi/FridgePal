@@ -4,6 +4,14 @@ from app.main import create_app
 
 
 def _client() -> TestClient:
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    import os
+
+    os.environ["DATABASE_URL"] = (
+        f"sqlite:///file:test_auth_{__import__('uuid').uuid4().hex}?mode=memory&cache=shared&uri=true"
+    )
     return TestClient(create_app())
 
 
