@@ -77,7 +77,7 @@ def seed_demo_inventory_for_user(
             )
             session.add(
                 InventoryLotRow(
-                    id=f"demo-lot-{user_id}-{food_key}",
+                    id=f"demo-lot-{user_id[:8]}-{food_key}",
                     food_definition_id=food_key,
                     quantity=quantity,
                     storage_location=location,
@@ -91,7 +91,7 @@ def seed_demo_inventory_for_user(
             )
             session.add(
                 ActivityEventRow(
-                    id=f"demo-event-{user_id}-{food_key}",
+                    id=f"demo-event-{user_id[:8]}-{food_key}",
                     event_type="CHECK_IN",
                     food_definition_id=food_key,
                     quantity_delta=quantity,
