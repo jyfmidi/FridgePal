@@ -1,10 +1,23 @@
 """Contract tests for the rescue search API pipeline."""
 
+import uuid
 from pathlib import Path
 
 from app.config import get_settings
 from app.main import create_app
 from fastapi.testclient import TestClient
+
+
+def _fresh_client(monkeypatch, tmp_path) -> TestClient:
+    db_path = tmp_path / f"test_{uuid.uuid4().hex}.db"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("SEED_DEMO_DATA", "false")
+    monkeypatch.setenv("RECIPE_PROVIDER_MODE", "fixture")
+    get_settings.cache_clear()
+    client = TestClient(create_app())
+    r = client.post("/api/auth/register", json={"username": "tester", "password": "password123"})
+    assert r.status_code == 201
+    return client
 
 
 def _search_payload() -> dict:
@@ -36,12 +49,7 @@ def test_search_returns_recipes_in_fixture_mode(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    database_path = tmp_path / "rescue.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    monkeypatch.setenv("RECIPE_PROVIDER_MODE", "fixture")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     response = client.post("/api/rescue/search", json=_search_payload())
 
@@ -86,12 +94,7 @@ def test_search_with_cuisine(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    database_path = tmp_path / "rescue.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    monkeypatch.setenv("RECIPE_PROVIDER_MODE", "fixture")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     payload = {**_search_payload(), "cuisine": "Chinese"}
     response = client.post("/api/rescue/search", json=payload)
@@ -109,12 +112,7 @@ def test_search_persists_session_retrievable_by_id(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    database_path = tmp_path / "rescue.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    monkeypatch.setenv("RECIPE_PROVIDER_MODE", "fixture")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     search_response = client.post("/api/rescue/search", json=_search_payload())
     assert search_response.status_code == 200
@@ -137,12 +135,7 @@ def test_search_rejects_empty_selection(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    database_path = tmp_path / "rescue.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    monkeypatch.setenv("RECIPE_PROVIDER_MODE", "fixture")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     payload = {"selectedFoods": [], "servings": 2, "locale": "en"}
     response = client.post("/api/rescue/search", json=payload)
@@ -156,12 +149,7 @@ def test_search_rejects_more_than_seven_foods(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    database_path = tmp_path / "rescue.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    monkeypatch.setenv("RECIPE_PROVIDER_MODE", "fixture")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     payload = {
         "selectedFoods": [
@@ -189,12 +177,7 @@ def test_get_unknown_session_returns_404(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    database_path = tmp_path / "rescue.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    monkeypatch.setenv("RECIPE_PROVIDER_MODE", "fixture")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     response = client.get("/api/rescue/nonexistent-session-id")
 
@@ -207,12 +190,7 @@ def test_search_is_deterministic_in_fixture_mode(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    database_path = tmp_path / "rescue.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    monkeypatch.setenv("RECIPE_PROVIDER_MODE", "fixture")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     payload = _search_payload()
 

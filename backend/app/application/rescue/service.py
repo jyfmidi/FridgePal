@@ -104,6 +104,7 @@ def _map_ingredient_food_keys(
 
 def search_recipe_sources(
     session: Session,
+    user_id: str,
     command: SearchCommand,
     adapters: RecipeAdapters,
 ) -> SearchResult:
@@ -164,6 +165,7 @@ def search_recipe_sources(
         ai_plan_error=recipe_errors[0] if recipe_errors and not recipes else None,
         source_analyses=None,
         searched_at=datetime.now(UTC),
+        user_id=user_id,
     )
     session.add(row)
     session.commit()
@@ -175,8 +177,13 @@ def search_recipe_sources(
     )
 
 
-def get_rescue_session(session: Session, session_id: str) -> dict[str, object] | None:
-    row = session.get(RescueSessionRow, session_id)
+def get_rescue_session(session: Session, user_id: str, session_id: str) -> dict[str, object] | None:
+    row = session.scalar(
+        select(RescueSessionRow).where(
+            RescueSessionRow.id == session_id,
+            RescueSessionRow.user_id == user_id,
+        )
+    )
     if row is None:
         return None
 
@@ -196,10 +203,13 @@ def get_rescue_session(session: Session, session_id: str) -> dict[str, object] |
     }
 
 
-def list_rescue_sessions(session: Session, limit: int = 3) -> list[dict[str, object]]:
+def list_rescue_sessions(session: Session, user_id: str, limit: int = 3) -> list[dict[str, object]]:
     rows = session.execute(
         select(RescueSessionRow)
-        .where(RescueSessionRow.source_results.isnot(None))
+        .where(
+            RescueSessionRow.user_id == user_id,
+            RescueSessionRow.source_results.isnot(None),
+        )
         .order_by(RescueSessionRow.created_at.desc())
         .limit(limit)
     ).scalars().all()

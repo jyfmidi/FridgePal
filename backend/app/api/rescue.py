@@ -12,6 +12,7 @@ from app.application.rescue.service import (
     list_rescue_sessions,
     search_recipe_sources,
 )
+from app.auth.service import UserContext
 from app.infrastructure.recipe.errors import RecipeAdapterError
 from app.infrastructure.recipe.factory import RecipeAdapters
 
@@ -38,17 +39,19 @@ class SearchRecipeRequest(BaseModel):
     cuisine: str = Field(default="")
 
 
-def build_rescue_router(session_provider, adapters: RecipeAdapters) -> APIRouter:
+def build_rescue_router(session_provider, adapters: RecipeAdapters, current_user) -> APIRouter:
     api = APIRouter()
 
     @api.post("/rescue/search")
     def search(
         payload: SearchRecipeRequest,
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, object]:
         try:
             result = search_recipe_sources(
                 session,
+                user.user_id,
                 SearchCommand(
                     selected_foods=[
                         SelectedFoodSnapshot(
@@ -89,17 +92,19 @@ def build_rescue_router(session_provider, adapters: RecipeAdapters) -> APIRouter
     @api.get("/rescue/sessions")
     def list_sessions(
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
         limit: int = 3,
     ) -> dict[str, list[dict[str, object]]]:
-        sessions = list_rescue_sessions(session, limit)
+        sessions = list_rescue_sessions(session, user.user_id, limit)
         return {"sessions": sessions}
 
     @api.get("/rescue/{session_id}")
     def get_session(
         session_id: str,
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, object]:
-        result = get_rescue_session(session, session_id)
+        result = get_rescue_session(session, user.user_id, session_id)
         if result is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="session not found"
