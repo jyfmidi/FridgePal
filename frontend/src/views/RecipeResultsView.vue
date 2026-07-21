@@ -158,7 +158,7 @@ function seasoningIngredients(recipe: Recipe) {
 }
 
 .results-error {
-  color: var(--color-danger, #b91c1c);
+  color: var(--color-danger);
 }
 
 .results-empty {

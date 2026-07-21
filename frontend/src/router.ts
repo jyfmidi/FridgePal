@@ -42,8 +42,8 @@ export const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  const { isAuthenticated, loading, init } = useAuth()
-  if (!loading.value && !isAuthenticated.value) {
+  const { isAuthenticated, init } = useAuth()
+  if (!isAuthenticated.value) {
     await init()
   }
   if (!isAuthenticated.value && !to.meta.public) {

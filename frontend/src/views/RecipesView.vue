@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import AppButton from '../components/AppButton.vue'
 import AppPageHeader from '../components/AppPageHeader.vue'
 import FoodToken from '../components/food-token/FoodToken.vue'
 import { useRecipeStore, type SavedRecipe } from '../features/recipes/recipeStore'
@@ -93,6 +94,7 @@ function openRecipe(recipe: SavedRecipe) {
       </div>
 
       <section v-else class="recipes-empty">
+        <img class="recipes-empty__mark" src="/brand/fridge-pal-mark.svg" alt="" width="64" height="80">
         <h2>{{ t('recipes.emptyTitle') }}</h2>
         <p>{{ t('recipes.emptyDescription') }}</p>
         <AppButton @click="router.push('/rescue')">{{ t('recipes.findIdeas') }}</AppButton>
@@ -217,6 +219,11 @@ function openRecipe(recipe: SavedRecipe) {
 
 .recipes-empty p {
   color: var(--color-muted);
+}
+
+.recipes-empty__mark {
+  width: 64px;
+  height: 80px;
 }
 
 @media (max-width: 620px) {

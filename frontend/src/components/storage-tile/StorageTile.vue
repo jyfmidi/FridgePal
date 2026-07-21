@@ -61,7 +61,13 @@ const urgencyIcon = computed<'clock' | 'tombstone'>(() => (props.food.urgency ==
   box-shadow:
     inset 0 0 0 1px var(--color-urgency-neutral-edge),
     inset 0 1px 0 rgb(255 255 255 / 0.4);
-  transition: transform var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
+  transition: transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .storage-tile:active {
+    transform: scale(0.97);
+  }
 }
 
 .storage-tile:hover {

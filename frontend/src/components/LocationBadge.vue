@@ -23,7 +23,7 @@ const { t } = useI18n()
   padding: 2px 7px 2px 5px;
   border: 1px solid;
   border-radius: var(--radius-full);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   line-height: 1;
   white-space: nowrap;

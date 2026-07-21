@@ -112,7 +112,7 @@ const options: LocationScope[] = props.includeAll ? ['all', ...locations] : loca
     gap: 3px;
     padding-right: 3px;
     padding-left: 3px;
-    font-size: 0.6875rem;
+    font-size: var(--font-size-xs);
   }
 }
 </style>

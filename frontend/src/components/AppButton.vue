@@ -39,11 +39,13 @@ withDefaults(
     background-color var(--duration-base) var(--ease-standard),
     box-shadow var(--duration-base) var(--ease-standard),
     color var(--duration-base) var(--ease-standard),
-    transform var(--duration-base) var(--ease-standard);
+    transform var(--duration-fast) var(--ease-standard);
 }
 
-.app-button:active:not(:disabled) {
-  transform: scale(0.97);
+@media (prefers-reduced-motion: no-preference) {
+  .app-button:active:not(:disabled) {
+    transform: scale(0.97);
+  }
 }
 
 .app-button:disabled {

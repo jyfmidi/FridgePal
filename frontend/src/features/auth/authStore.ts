@@ -9,17 +9,25 @@ import type { AuthUser } from '../../api/auth'
 
 const currentUser = ref<AuthUser | null>(null)
 const loading = ref(false)
+/** Shared in-flight init so concurrent callers (router guard, App mount) await the same fetch. */
+let initPromise: Promise<void> | null = null
 
 export function useAuth() {
   const isAuthenticated = computed(() => currentUser.value !== null)
 
-  async function init() {
-    loading.value = true
-    try {
-      currentUser.value = await fetchCurrentUser()
-    } finally {
-      loading.value = false
+  function init(): Promise<void> {
+    if (!initPromise) {
+      loading.value = true
+      initPromise = fetchCurrentUser()
+        .then((user) => {
+          currentUser.value = user
+        })
+        .finally(() => {
+          loading.value = false
+          initPromise = null
+        })
     }
+    return initPromise
   }
 
   async function login(username: string, password: string) {

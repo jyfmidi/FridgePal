@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import AppButton from '../components/AppButton.vue'
+import AppInput from '../components/AppInput.vue'
+import AuthLayout from '../components/AuthLayout.vue'
+import { useLocale } from '../composables/useLocale'
 import { useAuth } from '../features/auth/authStore'
 
 const router = useRouter()
+const { t } = useI18n()
 const { login } = useAuth()
+const { toggleLocale } = useLocale()
 
 const username = ref('')
 const password = ref('')
@@ -18,7 +25,7 @@ async function handleSubmit() {
     await login(username.value, password.value)
     router.push('/')
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Login failed'
+    error.value = e instanceof Error ? e.message : t('auth.loginFailed')
   } finally {
     submitting.value = false
   }
@@ -26,117 +33,61 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="auth-page">
-    <form class="auth-card" @submit.prevent="handleSubmit">
-      <h1 class="auth-card__title">Fridge Pal</h1>
-      <p class="auth-card__subtitle">Log in to your kitchen</p>
+  <AuthLayout :tagline="t('auth.tagline')">
+    <form class="auth-form" @submit.prevent="handleSubmit">
+      <h2 class="auth-form__title">{{ t('auth.loginTitle') }}</h2>
 
-      <div class="auth-field">
-        <label for="login-username" class="auth-field__label">Username</label>
-        <input
-          id="login-username"
-          v-model="username"
-          type="text"
-          class="auth-field__input"
-          autocomplete="username"
-          required
-        >
-      </div>
+      <AppInput
+        id="login-username"
+        v-model="username"
+        :label="t('auth.username')"
+        autocomplete="username"
+        required
+      />
 
-      <div class="auth-field">
-        <label for="login-password" class="auth-field__label">Password</label>
-        <input
-          id="login-password"
-          v-model="password"
-          type="password"
-          class="auth-field__input"
-          autocomplete="current-password"
-          required
-        >
-      </div>
+      <AppInput
+        id="login-password"
+        v-model="password"
+        :label="t('auth.password')"
+        type="password"
+        autocomplete="current-password"
+        required
+      />
 
-      <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
+      <p v-if="error" class="auth-form__error" role="alert">{{ error }}</p>
 
-      <button
-        type="submit"
-        class="auth-submit"
-        :disabled="submitting"
-      >
-        {{ submitting ? 'Logging in…' : 'Log in' }}
-      </button>
+      <AppButton type="submit" block :disabled="submitting">
+        {{ submitting ? t('auth.loggingIn') : t('auth.login') }}
+      </AppButton>
 
-      <p class="auth-link">
-        No account?
-        <router-link to="/register">Register</router-link>
+      <p class="auth-form__link">
+        {{ t('auth.noAccount') }}
+        <router-link to="/register">{{ t('auth.register') }}</router-link>
       </p>
     </form>
-  </div>
+    <template #footer>
+      <button type="button" class="auth-locale-toggle" @click="toggleLocale">
+        {{ t('auth.switchLocale') }}
+      </button>
+    </template>
+  </AuthLayout>
 </template>
 
 <style scoped>
-.auth-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: var(--space-6);
-  background: var(--color-canvas);
-}
-
-.auth-card {
-  width: min(90%, 380px);
+.auth-form {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-8);
-  background: var(--color-surface);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-md);
 }
 
-.auth-card__title {
-  font-size: var(--font-size-2xl);
+.auth-form__title {
+  font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   letter-spacing: var(--letter-spacing-display);
-  color: var(--color-brand);
-  text-align: center;
-}
-
-.auth-card__subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--color-muted);
-  text-align: center;
-  margin-top: calc(var(--space-2) * -1);
-}
-
-.auth-field {
-  display: grid;
-  gap: var(--space-1);
-}
-
-.auth-field__label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-ink-soft);
-}
-
-.auth-field__input {
-  min-height: var(--tap-target-min);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-base);
-  font-family: inherit;
   color: var(--color-ink);
-  background: var(--color-surface);
-  transition: border-color var(--duration-base) var(--ease-standard);
+  text-align: center;
 }
 
-.auth-field__input:focus {
-  outline: none;
-  border-color: var(--color-focus-ring);
-  box-shadow: 0 0 0 var(--focus-ring-width) var(--color-primary-softer);
-}
-
-.auth-error {
+.auth-form__error {
   font-size: var(--font-size-sm);
   color: var(--color-danger);
   background: var(--color-danger-soft);
@@ -144,41 +95,30 @@ async function handleSubmit() {
   border-radius: var(--radius-sm);
 }
 
-.auth-submit {
-  min-height: var(--tap-target-min);
-  padding: var(--space-2) var(--space-4);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-on-primary);
-  background: var(--color-primary);
-  cursor: pointer;
-  transition: background-color var(--duration-base) var(--ease-standard);
-}
-
-.auth-submit:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-}
-
-.auth-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.auth-link {
+.auth-form__link {
   font-size: var(--font-size-sm);
   color: var(--color-muted);
   text-align: center;
 }
 
-.auth-link a {
+.auth-form__link a {
   color: var(--color-primary);
   font-weight: var(--font-weight-medium);
   text-decoration: none;
 }
 
-.auth-link a:hover {
+.auth-form__link a:hover {
   text-decoration: underline;
+}
+
+.auth-locale-toggle {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  border-radius: var(--radius-sm);
+}
+
+.auth-locale-toggle:hover {
+  color: var(--color-ink-soft);
 }
 </style>

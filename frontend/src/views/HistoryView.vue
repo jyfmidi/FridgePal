@@ -227,6 +227,7 @@ onMounted(() => {
 
       <!-- Empty state -->
       <div v-else-if="events.length === 0" class="history-empty">
+        <img class="history-empty__mark" src="/brand/fridge-pal-mark.svg" alt="" width="64" height="80">
         <p>{{ t('history.empty') }}</p>
       </div>
 
@@ -298,6 +299,7 @@ onMounted(() => {
       </div>
 
       <div v-else-if="mealIdeas.length === 0" class="history-empty">
+        <img class="history-empty__mark" src="/brand/fridge-pal-mark.svg" alt="" width="64" height="80">
         <p>{{ t('mealIdeas.empty') }}</p>
       </div>
 
@@ -366,7 +368,7 @@ onMounted(() => {
 }
 
 .history-tabs button:hover {
-  color: var(--color-text);
+  color: var(--color-ink);
 }
 
 .history-tabs button.active {
@@ -378,7 +380,7 @@ onMounted(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-danger, #ef4444);
+  background: var(--color-danger);
   animation: pulse 2s infinite;
 }
 
@@ -423,9 +425,16 @@ onMounted(() => {
   display: grid;
   min-height: calc(100vh - 72px);
   place-items: center;
+  align-content: center;
+  gap: var(--space-3);
   text-align: center;
   color: var(--color-muted);
   padding: var(--space-6);
+}
+
+.history-empty__mark {
+  width: 64px;
+  height: 80px;
 }
 
 .history-list {
@@ -465,7 +474,7 @@ onMounted(() => {
 }
 
 .history-event__icon-wrap--reversal {
-  color: var(--color-text);
+  color: var(--color-ink);
   background: var(--color-primary-softer);
 }
 
@@ -498,7 +507,7 @@ onMounted(() => {
 
 .history-event__description {
   font-size: var(--font-size-base);
-  color: var(--color-text);
+  color: var(--color-ink);
   margin: 0;
 }
 
@@ -560,7 +569,7 @@ onMounted(() => {
 .meal-idea-card__new {
   padding: 2px var(--space-2);
   border-radius: var(--radius-sm);
-  background: var(--color-danger, #ef4444);
+  background: var(--color-danger);
   color: white;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);

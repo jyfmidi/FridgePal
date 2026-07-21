@@ -6,6 +6,10 @@
      2. Semantic aliases (--color-*, --space-*, ...) — the only tokens
         components consume. Light theme is P0; a future dark theme remaps
         this layer only.
+
+   Standard breakpoints: 720px (mobile layout tweaks) and 880px (desktop
+   layout). CSS custom properties cannot be used in media queries, so write
+   these widths literally — only these two values are allowed.
    ========================================================================== */
 
 /* ---------- Layer 1: raw palette ---------- */
@@ -34,6 +38,15 @@
   --frd-blue-500: #3d7bf0;
   --frd-blue-100: #e3ecfd;
   --frd-blue-50: #f0f5fe;
+
+  /* Brand coral ramp (logo colors + tints). Reserved for brand identity
+     moments (auth screens, logo contexts); never tints inventory or
+     urgency surfaces. */
+  --frd-brand-500: #f47b65;
+  --frd-brand-600: #ee6a56;
+  --frd-brand-800: #b84739; /* on --frd-brand-100: 4.9:1, on --frd-brand-50: 5.5:1 */
+  --frd-brand-100: #fce9e4;
+  --frd-brand-50: #fef4f1;
 
   /* Urgency surfaces: coral -> amber -> yellow -> neutral */
   --frd-coral-500: #e4645a;
@@ -69,7 +82,14 @@
   --color-ink: var(--frd-navy-900);
   --color-ink-soft: var(--frd-navy-600);
   --color-muted: var(--frd-navy-400);
-  --color-brand: var(--frd-navy-900);
+
+  /* Brand identity (coral). Blue stays the interaction color; coral is for
+     logo contexts, auth screens, and empty-state accents only. */
+  --color-brand: var(--frd-brand-500);
+  --color-brand-strong: var(--frd-brand-600);
+  --color-brand-ink: var(--frd-brand-800); /* for text on brand-soft/-softer */
+  --color-brand-soft: var(--frd-brand-100);
+  --color-brand-softer: var(--frd-brand-50);
 
   /* Borders */
   --color-border: var(--frd-cream-300);
@@ -181,7 +201,7 @@
   /* Typography: system-first stack, no bundled webfonts.
      CJK fallbacks keep zh-CN rendering native per platform. */
   --font-family-sans:
-    'Inter', 'SF Pro Text', system-ui, -apple-system, 'Segoe UI', Roboto,
+    'SF Pro Text', system-ui, -apple-system, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
   --font-size-xs: 0.75rem; /* 12 */

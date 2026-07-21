@@ -7,6 +7,7 @@ import FridgePalLoader from './components/FridgePalLoader.vue'
 import { useAuth } from './features/auth/authStore'
 import { useRescueStore } from './features/rescue/rescueStore'
 import { useInventoryStore } from './features/storage/inventoryStore'
+import { useLocale } from './composables/useLocale'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -31,6 +32,7 @@ router.beforeEach((to, from) => {
 const { inventory, hydrateFromServer } = useInventoryStore()
 const { searching, searchResult, latestSessionId } = useRescueStore(inventory)
 const { isAuthenticated, currentUser, init: initAuth, logout } = useAuth()
+const { toggleLocale } = useLocale()
 
 const showCompleteDialog = ref(false)
 const initialHydrationPending = ref(true)
@@ -92,11 +94,15 @@ async function handleLogout() {
 <template>
   <div class="app-shell" :class="{ 'app-shell--task': hideNavigation }">
     <a href="#main-content" class="skip-link">{{ t('common.skipToContent') }}</a>
-    <div v-if="isAuthenticated && !hideNavigation" class="user-widget">
-      <span class="user-widget__name">{{ currentUser?.username }}</span>
-      <button class="user-widget__logout" @click="handleLogout">Logout</button>
-    </div>
-    <AppNav v-if="!hideNavigation" />
+    <AppNav v-if="!hideNavigation">
+      <template v-if="isAuthenticated" #footer>
+        <div class="user-widget">
+          <span class="user-widget__name">{{ currentUser?.username }}</span>
+          <button class="user-widget__locale" type="button" @click="toggleLocale">{{ t('common.switchLocale') }}</button>
+          <button class="user-widget__logout" @click="handleLogout">{{ t('auth.logout') }}</button>
+        </div>
+      </template>
+    </AppNav>
     <main id="main-content" class="app-content">
       <FridgePalLoader
         v-if="showInitialLoader"
@@ -131,7 +137,7 @@ async function handleLogout() {
 <style scoped>
 .skip-link {
   position: absolute;
-  z-index: 9999;
+  z-index: var(--z-toast);
   top: -100px;
   left: 0;
   padding: var(--space-2) var(--space-4);
@@ -150,12 +156,10 @@ async function handleLogout() {
 }
 
 .user-widget {
-  position: fixed;
-  top: var(--space-2);
-  right: var(--space-2);
-  z-index: var(--z-sticky);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
   background: var(--color-surface);
@@ -168,6 +172,23 @@ async function handleLogout() {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-ink-soft);
+}
+
+.user-widget__locale {
+  min-height: 32px;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--duration-base) var(--ease-standard);
+}
+
+.user-widget__locale:hover {
+  background: var(--color-primary-softer);
 }
 
 .user-widget__logout {
@@ -202,7 +223,7 @@ async function handleLogout() {
 <style>
 .complete-dialog-overlay {
   position: fixed;
-  z-index: 9998;
+  z-index: var(--z-dialog);
   inset: 0;
   display: grid;
   place-items: center;
@@ -253,7 +274,7 @@ async function handleLogout() {
 
 .complete-dialog__btn--cancel {
   background: var(--color-surface-sunken);
-  color: var(--color-text);
+  color: var(--color-ink);
 }
 
 .complete-dialog__btn--cancel:hover {

@@ -1,4 +1,5 @@
 import { createI18n } from 'vue-i18n'
+import { initLocale } from '../composables/useLocale'
 
 export const i18n = createI18n({
   legacy: false,
@@ -7,13 +8,29 @@ export const i18n = createI18n({
   messages: {
     en: {
       app: { title: 'Fridge Pal' },
+      auth: {
+        tagline: "Your fridge's best pal",
+        loginTitle: 'Welcome back', loginSubtitle: 'Log in to your kitchen',
+        registerTitle: 'Create your account', registerSubtitle: 'Create your kitchen account',
+        username: 'Username', usernamePlaceholder: '3-32 chars, letters/numbers/_/-',
+        password: 'Password', passwordPlaceholder: 'At least 8 characters',
+        confirmPassword: 'Confirm password',
+        login: 'Log in', loggingIn: 'Logging in…',
+        register: 'Register', registering: 'Creating…',
+        logout: 'Logout',
+        noAccount: 'No account?', haveAccount: 'Already have an account?',
+        loginFailed: 'Login failed', registerFailed: 'Registration failed',
+        passwordMismatch: 'Passwords do not match',
+        switchLocale: '中文',
+      },
       loading: { initial: 'Loading Fridge Pal…' },
-      common: { comingNext: 'This part of the MVP is coming next.', back: 'Back', done: 'Done', skipToContent: 'Skip to content', cancel: 'Cancel' },
+      common: { comingNext: 'This part of the MVP is coming next.', back: 'Back', done: 'Done', skipToContent: 'Skip to content', cancel: 'Cancel', switchLocale: '中文' },
       navigation: { label: 'Primary navigation', storage: 'Storage', rescue: 'Rescue', recipes: 'Recipes', history: 'History' },
       storage: {
         title: 'Storage', addFood: 'Add food', search: 'Search storage', searchPlaceholder: 'Search foods',
         useSoon: 'Use soon', needsAttention: '{count} foods need attention', inventory: 'Complete inventory',
         locationFilter: 'Filter by storage location', items: '{count} items', noMatches: 'No foods match these filters.', clearFilters: 'Clear filters', localOnly: 'Changes are currently saved in this browser only. Start the Fridge Pal server to sync them.',
+        emptyAll: 'Your fridge is empty — add your first food to get started.',
         scopes: { all: 'All', fridge: 'Fridge', freezer: 'Freezer', pantry: 'Pantry' },
       },
       storageItem: {
@@ -143,13 +160,29 @@ export const i18n = createI18n({
     },
     'zh-CN': {
       app: { title: 'Fridge Pal' },
+      auth: {
+        tagline: '你的冰箱小管家',
+        loginTitle: '欢迎回来', loginSubtitle: '登录你的厨房',
+        registerTitle: '创建账号', registerSubtitle: '创建你的厨房账号',
+        username: '用户名', usernamePlaceholder: '3-32 个字符，可用字母/数字/_/-',
+        password: '密码', passwordPlaceholder: '至少 8 个字符',
+        confirmPassword: '确认密码',
+        login: '登录', loggingIn: '正在登录…',
+        register: '注册', registering: '正在创建…',
+        logout: '退出登录',
+        noAccount: '还没有账号？', haveAccount: '已有账号？',
+        loginFailed: '登录失败', registerFailed: '注册失败',
+        passwordMismatch: '两次输入的密码不一致',
+        switchLocale: 'EN',
+      },
       loading: { initial: 'Fridge Pal 正在准备中…' },
-      common: { comingNext: 'MVP 的这一部分将在下一步完成。', back: '返回', done: '完成', skipToContent: '跳到主要内容', cancel: '取消' },
+      common: { comingNext: 'MVP 的这一部分将在下一步完成。', back: '返回', done: '完成', skipToContent: '跳到主要内容', cancel: '取消', switchLocale: 'EN' },
       navigation: { label: '主导航', storage: '储藏', rescue: '拯救食材', recipes: '菜谱', history: '记录' },
       storage: {
         title: '储藏', addFood: '添加食材', search: '搜索储藏', searchPlaceholder: '搜索食材',
         useSoon: '尽快使用', needsAttention: '{count} 种食材需要留意', inventory: '全部库存',
         locationFilter: '按储藏位置筛选', items: '{count} 项', noMatches: '没有符合当前筛选条件的食材。', clearFilters: '清除筛选', localOnly: '当前更改仅保存在此浏览器中。启动 Fridge Pal 服务后即可同步。',
+        emptyAll: '冰箱还空着，先添加一些食材吧。',
         scopes: { all: '全部', fridge: '冷藏', freezer: '冷冻', pantry: '常温' },
       },
       storageItem: {
@@ -278,3 +311,5 @@ export const i18n = createI18n({
     },
   },
 })
+
+initLocale(i18n.global.locale)

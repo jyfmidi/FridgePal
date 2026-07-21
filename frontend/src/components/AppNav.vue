@@ -17,6 +17,10 @@ const destinations = [
 
 <template>
   <nav class="app-nav" :aria-label="t('navigation.label')">
+    <div class="app-nav__brand">
+      <img class="app-nav__mark" src="/brand/fridge-pal-mark.svg" alt="" width="38" height="48">
+      <span class="app-nav__wordmark">Fridge Pal</span>
+    </div>
     <RouterLink v-for="item in destinations" :key="item.to" :to="item.to" class="app-nav__item">
       <span class="app-nav__icon" aria-hidden="true">
         <svg
@@ -59,6 +63,9 @@ const destinations = [
       <span>{{ t(item.label) }}</span>
       <span v-if="newMealIdea && item.to === '/history'" class="sr-only">{{ t('mealIdeas.newAvailable') }}</span>
     </RouterLink>
+    <div class="app-nav__footer">
+      <slot name="footer" />
+    </div>
   </nav>
 </template>
 
@@ -78,6 +85,19 @@ const destinations = [
   -webkit-backdrop-filter: blur(12px);
 }
 
+/* Brand block only exists in the desktop sidebar. The footer slot (user
+   widget) floats above the bottom bar on mobile, clear of the page header. */
+.app-nav__brand {
+  display: none;
+}
+
+.app-nav__footer {
+  position: fixed;
+  z-index: var(--z-nav);
+  right: var(--space-2);
+  bottom: calc(72px + var(--safe-area-bottom));
+}
+
 .app-nav__item {
   position: relative;
   display: flex;
@@ -88,7 +108,7 @@ const destinations = [
   gap: 2px;
   border-radius: var(--radius-sm);
   color: var(--color-muted);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   transition:
     color var(--duration-base) var(--ease-standard),
@@ -140,7 +160,7 @@ const destinations = [
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-danger, #ef4444);
+  background: var(--color-danger);
   animation: pulse 2s infinite;
 }
 
@@ -162,14 +182,38 @@ const destinations = [
     right: auto;
     bottom: auto;
     left: auto;
+    display: flex;
     width: 200px;
     height: 100vh;
-    grid-template-columns: 1fr;
-    align-content: start;
+    flex-direction: column;
     gap: var(--space-2);
-    padding: 88px var(--space-4) var(--space-4);
+    padding: var(--space-5) var(--space-4) var(--space-4);
     border-top: 0;
     border-right: 1px solid var(--color-border);
+  }
+
+  .app-nav__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 0 var(--space-3) var(--space-4);
+  }
+
+  .app-nav__mark {
+    width: 38px;
+    height: 48px;
+  }
+
+  .app-nav__wordmark {
+    color: var(--color-brand-ink);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--letter-spacing-display);
+  }
+
+  .app-nav__footer {
+    position: static;
+    margin-top: auto;
   }
 
   .app-nav__item {

@@ -47,11 +47,6 @@ function urgencyLabel(food: InventoryFood): string | undefined {
   return new Intl.DateTimeFormat(locale.value, { month: 'short', day: 'numeric' }).format(new Date(`${food.expiresOn}T00:00:00`))
 }
 
-function toggleLocale() {
-  locale.value = locale.value === 'en' ? 'zh-CN' : 'en'
-  document.documentElement.lang = locale.value
-}
-
 /** UI-03 — a tile tap opens the ingredient detail/edit view. */
 function openItem(food: InventoryFood) {
   void router.push({ path: '/storage/item', query: { food: food.foodKey, location: food.location.toUpperCase() } })
@@ -66,7 +61,6 @@ function openItem(food: InventoryFood) {
           <button class="icon-action" type="button" :aria-label="t('storage.search')" @click="searchOpen = !searchOpen">
             <AppIcon name="search" :size="20" />
           </button>
-          <button class="locale-action" type="button" @click="toggleLocale">{{ locale === 'en' ? '中文' : 'EN' }}</button>
           <AppButton class="add-action" @click="$router.push('/add-food')">
             <AppIcon name="add" :size="18" />
             {{ t('storage.addFood') }}
@@ -126,7 +120,8 @@ function openItem(food: InventoryFood) {
         />
       </div>
       <div v-else class="storage-empty">
-        <p>{{ t('storage.noMatches') }}</p>
+        <img class="storage-empty__mark" src="/brand/fridge-pal-mark.svg" alt="" width="64" height="80">
+        <p>{{ inventory.length === 0 ? t('storage.emptyAll') : t('storage.noMatches') }}</p>
         <button type="button" @click="scope = 'all'; searchQuery = ''">{{ t('storage.clearFilters') }}</button>
       </div>
     </section>
@@ -148,23 +143,13 @@ function openItem(food: InventoryFood) {
   gap: var(--space-1);
 }
 
-.icon-action,
-.locale-action {
+.icon-action {
   min-width: var(--tap-target-min);
   min-height: var(--tap-target-min);
   border-radius: var(--radius-sm);
   color: var(--color-primary);
-}
-
-.icon-action {
   display: grid;
   place-items: center;
-}
-
-.locale-action {
-  display: none;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
 }
 
 .add-action {
@@ -270,6 +255,11 @@ function openItem(food: InventoryFood) {
   background: var(--color-surface);
 }
 
+.storage-empty__mark {
+  width: 64px;
+  height: 80px;
+}
+
 .storage-empty button {
   min-height: var(--tap-target-min);
   color: var(--color-primary);
@@ -293,10 +283,6 @@ function openItem(food: InventoryFood) {
     padding-right: var(--space-6);
     padding-bottom: var(--space-10);
     padding-left: var(--space-6);
-  }
-
-  .locale-action {
-    display: block;
   }
 
   .use-soon-grid {
