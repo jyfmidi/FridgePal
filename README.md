@@ -1,42 +1,12 @@
 # Fridge Pal
 
-Fridge Pal is a private, self-hosted digital twin for household food storage. It helps one home cook record food, notice expiration risk, turn urgent ingredients into meal ideas, edit recipes, and reconcile actual usage back into Storage.
+**Turn food that is about to expire into tonight's meal.**
 
-**Primary promise:** Turn food that is about to expire into tonight's meal.
+Fridge Pal is a private, self-hosted digital twin for household food storage. A home cook records what is in the fridge, freezer, and pantry; Fridge Pal surfaces expiration risk at a glance, turns urgent ingredients into grounded meal ideas, lets them edit and portion recipes, and reconciles what was actually used back into inventory — atomically and reversibly.
 
-> **Security boundary:** Fridge Pal supports username/password authentication with per-user data isolation. Set `FRIDGE_PAL_JWT_SECRET`, `FRIDGE_PAL_DEMO_PASSWORD`, and `FRIDGE_PAL_COOKIE_SECURE=true` for public deployment.
+The product personality is cheerful and calm: a coral refrigerator mascot, a warm cream canvas, and a glanceable tile interface that works identically on mobile and desktop, in English and Simplified Chinese.
 
-## Current Status
-
-Fridge Pal is an actively developed hackathon MVP.
-
-- Storage, Use Soon, Add Food, item editing, canonical unit conversion, Rescue selection, recipe results, Recipe Editor, Saved Recipes UI, and cooking reconciliation interactions are implemented.
-- Inventory data is persisted through FastAPI, SQLAlchemy, Alembic, and MySQL in Docker deployments.
-- Recipe discovery currently retains deterministic fixture behavior; live provider integration remains adapter-controlled and optional.
-- History is still represented by a placeholder route, and parts of the recipe/saved-recipe flow remain client-side MVP state rather than complete server persistence.
-- Docker Compose is the supported production deployment path.
-
-Do not treat the current MVP as a public multi-user service.
-
-## Deploy with Docker Compose
-
-For a new self-managed Linux server, follow the canonical [Docker Compose deployment runbook](docs/DEPLOYMENT.md). It includes IP-based access, firewall requirements, health checks, upgrades, backups, restores, rollbacks, and troubleshooting.
-
-Minimal first start:
-
-```bash
-cp .env.example .env
-chmod 600 .env
-# Replace MYSQL_PASSWORD and review APP_BIND_ADDRESS before continuing.
-docker compose config --quiet
-docker compose build --pull app
-docker compose up -d
-docker compose ps
-```
-
-The safe default binds to `127.0.0.1:8080`. For direct access through a server IP, set `APP_BIND_ADDRESS=0.0.0.0` and allow port `8080` only from trusted source addresses in the host or cloud firewall.
-
-## Product Loop
+## The Golden Loop
 
 ```mermaid
 flowchart LR
@@ -49,9 +19,34 @@ flowchart LR
     G --> H["History and Undo"]
 ```
 
+- **Storage** — lot-level truth with aggregated overview tiles, urgency-colored by expiration window (Today → 1–2 days → 3–5 days → later), location filter (Fridge / Freezer / Pantry), and search.
+- **Use Soon** — a derived alert rail of foods needing attention; urgent foods also remain in the complete inventory.
+- **Rescue** — pick up to seven foods; each recipe source card shows a fixed seven-slot bright/dark belt of exactly which selected foods it uses, with separate `Open source` and `Use this recipe` actions. An AI Cooking Plan can synthesize a normalized recipe with ingredient quantities up front.
+- **Recipe Editor** — one shared editor for AI plans, analyzed sources, and saved recipes; portion scaling preserves normalized base values and never mutates Storage while editing.
+- **Reconciliation** — after cooking, `What did you use?` is the single mutation gate: one transactional, idempotent Storage update, recorded in History and reversible through compensating events.
+
+## Feature Highlights
+
+- **Multi-user with isolation** — username/password auth (JWT session cookie), every repository query scoped by `user_id`, cross-user access returns 404.
+- **Bilingual by design** — full English and Simplified Chinese UI (vue-i18n), persisted locale preference, browser-language detection, and localized food names, dates, and numbers.
+- **Responsive parity** — mobile and desktop expose the same feature set; mobile is the canonical interaction sequence, desktop gains width and a sidebar.
+- **Brand system** — coral mascot identity on top of a two-layer semantic design-token system (color, spacing, radius, shadow, motion), shared primitives (`AppButton`, `AppInput`, `AppChip`, Food Tokens), and reduced-motion support.
+- **Trustworthy inventory** — canonical unit conversion (g/ml/count), non-negative quantities, audit trail, undo.
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Vue 3, TypeScript, Vite, vue-router, vue-i18n, plain CSS with semantic design tokens (no UI framework) |
+| Backend | FastAPI, SQLAlchemy 2, Alembic, Pydantic v2, PyJWT, bcrypt |
+| Database | MySQL 8.4 in Docker deployment; SQLite for local development |
+| AI / recipes | Provider-neutral adapter layer; deterministic fixture provider by default, live provider behind `RECIPE_PROVIDER_MODE` |
+| E2E | Playwright |
+| Packaging | Single multi-stage Dockerfile (Vue build → non-root Python runtime) + Docker Compose |
+
 ## Architecture
 
-The repository builds one application image. FastAPI serves both the API and the compiled Vue client; MySQL is reachable only through the private Compose network.
+The repository builds **one application image**: FastAPI serves both the JSON API and the compiled Vue client; MySQL is reachable only through the private Compose network.
 
 ```mermaid
 flowchart LR
@@ -62,79 +57,71 @@ flowchart LR
     DB --> VOLUME["Named Docker volume"]
 ```
 
-Inventory mutations remain server-owned, transactional, idempotent, non-negative, auditable, and reversible through compensating events. AI and retrieved web content are untrusted and cannot write inventory.
-
-## Repository Structure
+### Backend — layered, domain-first
 
 ```text
-fridge-pal/
-├── backend/
-│   ├── app/
-│   │   ├── api/                 # FastAPI routes and transport models
-│   │   ├── application/         # Use cases and transaction orchestration
-│   │   ├── domain/              # Pure inventory, quantity, and urgency rules
-│   │   └── infrastructure/
-│   │       ├── db/              # SQLAlchemy models, sessions, and seed handling
-│   │       ├── logging/         # Logging boundary
-│   │       └── recipe/          # Provider-neutral recipe adapters
-│   ├── alembic/                 # Database migrations
-│   ├── tests/                   # Unit, integration, contract, and security tests
-│   └── pyproject.toml
-├── frontend/
-│   ├── src/
-│   │   ├── api/                 # Typed HTTP clients
-│   │   ├── components/          # Shared headers, icons, food tokens, and controls
-│   │   ├── features/            # Storage, Rescue, and Recipes state
-│   │   ├── i18n/                # English and Simplified Chinese resources
-│   │   ├── styles/              # Semantic visual tokens and global styles
-│   │   └── views/               # Route-level Vue views
-│   ├── package.json
-│   └── vite.config.ts
+backend/app/
+├── api/               # FastAPI routers: auth, inventory, rescue, recipes, history, health
+├── application/       # Use cases and transaction orchestration per feature
+├── auth/              # JWT issuing/verification, password hashing, session cookies
+├── domain/            # Pure rules: inventory lots, quantities, units, urgency, allocation
+└── infrastructure/
+    ├── db/            # SQLAlchemy models, sessions, demo seed
+    ├── logging/       # Logging boundary
+    └── recipe/        # Provider-neutral recipe adapters (fixture + live)
+```
+
+Design rules that hold everywhere:
+
+- **Domain code is pure** — no HTTP, database, UI, or provider imports; quantity/urgency/allocation logic is unit-tested in isolation.
+- **Server-owned mutations** — every inventory-changing operation is transactional, idempotent (idempotency keys), non-negative, and auditable; reversal happens through compensating events, never by deleting history.
+- **AI is untrusted** — AI plans and retrieved web content may *propose* structured data but can never write inventory; the `Update storage` confirmation is the only mutation gate. No secret or raw retrieved page content reaches client code, URLs, analytics, or logs.
+- **Per-user isolation** — auth is a JWT session cookie (bcrypt password hashing); every query filters by `user_id`.
+- **Alembic owns the schema** — the application container applies migrations at startup.
+
+### Frontend — feature stores + token-driven styling
+
+```text
+frontend/src/
+├── api/               # Typed HTTP clients per feature
+├── components/        # Shared primitives (AppButton, AppInput, AppChip, nav, headers)
+│   ├── food-token/    # Deterministic semi-flat food icon system
+│   ├── recipes/  rescue/  storage-tile/
+├── composables/       # Cross-cutting state (useLocale)
+├── features/          # auth, storage, rescue, recipes — composable stores (no Pinia)
+├── i18n/              # en + zh-CN message trees
+├── styles/            # tokens.css (raw palette → semantic aliases) + base.css
+└── views/             # Route-level views (Storage, Rescue, Recipe Editor, History, auth…)
+```
+
+- **Two-layer tokens** — components only consume semantic aliases (`--color-ink`, `--color-brand`, urgency and location ramps with WCAG-verified text pairs), never raw palette values; a future dark theme can re-point the alias layer.
+- **Brand vs. interaction color discipline** — coral is the brand color (mascot, auth screens, empty states, sidebar); blue remains the action color; the expiration urgency ramp stays semantically reserved.
+- **Mobile-first responsive** — bottom tab bar on mobile becomes a sidebar with a brand block at ≥880px; tap targets ≥44px; `100dvh` containers; safe-area insets.
+
+## Repository Layout
+
+```text
+├── backend/           # FastAPI app, Alembic migrations, pytest suite (unit/integration/contract/security)
+├── frontend/          # Vue 3 client
+├── e2e/               # Playwright checks and capture scripts
 ├── docs/
-│   ├── DEPLOYMENT.md            # Canonical server operations runbook
-│   ├── PRODUCT_REQUIREMENTS.md  # Product scope and acceptance criteria
-│   ├── DOMAIN_AND_AI_CONTRACTS.md
-│   ├── UX_SPEC.md
-│   ├── IMPLEMENTATION_PLAN.md
-│   ├── plans/                   # Approved feature designs and execution plans
-│   └── visuals/                 # Non-production visual references
-├── e2e/                         # Optional browser checks and manual scripts
-├── .dockerignore                # Reproducible, minimal image build context
-├── .env.example                 # Non-secret deployment configuration template
-├── compose.yaml                 # App, MySQL, health, and persistent volume
-├── Dockerfile                   # Vue build plus non-root Python runtime
-└── AGENTS.md                    # Mandatory repository instructions for agents
+│   ├── PRODUCT_REQUIREMENTS.md      # Product scope and acceptance criteria
+│   ├── DOMAIN_AND_AI_CONTRACTS.md   # Domain, mutation, and AI-safety contracts
+│   ├── UX_SPEC.md                   # Interaction and visual specification
+│   ├── IMPLEMENTATION_PLAN.md       # Ordered delivery slices
+│   ├── DEPLOYMENT.md                # Canonical server operations runbook
+│   ├── plans/                       # Approved feature designs (dated)
+│   └── visuals/                     # Non-production style reference boards
+├── compose.yaml       # App + MySQL + healthchecks + persistent volume
+├── Dockerfile         # Vue build → non-root Python runtime
+└── AGENTS.md          # Mandatory repository instructions for agents
 ```
 
-### Runtime ownership
+## Getting Started
 
-- The browser owns presentation and temporary interaction state only.
-- FastAPI owns validation, inventory operations, persistence access, and provider credentials.
-- Domain code stays independent from HTTP, UI, database, and provider packages.
-- Alembic owns schema evolution; the application container applies migrations at startup.
-- MySQL is the production source of truth and lives in the `fridgital-mysql-data` volume.
+### Local development
 
-## Canonical Documentation
-
-Read these documents completely and in this order before changing application code:
-
-1. [Product Requirements](docs/PRODUCT_REQUIREMENTS.md)
-2. [Domain and AI Contracts](docs/DOMAIN_AND_AI_CONTRACTS.md)
-3. [UX Specification](docs/UX_SPEC.md)
-4. [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
-5. [AGENTS.md](AGENTS.md)
-
-When details conflict, authority is:
-
-```text
-Product Requirements > Domain and AI Contracts > UX Specification > visual boards
-```
-
-## Local Development
-
-### Backend
-
-Requires Python 3.11 or newer.
+Backend (Python 3.11+):
 
 ```bash
 cd backend
@@ -145,11 +132,7 @@ alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
-The local default database is SQLite. The API health endpoint is `http://127.0.0.1:8000/api/health`.
-
-### Frontend
-
-Requires Node.js 22 or newer.
+Frontend (Node.js 22+):
 
 ```bash
 cd frontend
@@ -157,60 +140,76 @@ npm ci
 npm run dev
 ```
 
-Vite serves `http://127.0.0.1:5173` and proxies `/api` to the local backend on port `8000`.
+Vite serves `http://127.0.0.1:5173` and proxies `/api` to port `8000`. Local development uses SQLite and seeds a demo account (password from `FRIDGE_PAL_DEMO_PASSWORD` in `.env`). The API health endpoint is `http://127.0.0.1:8000/api/health`.
+
+### Docker deployment
+
+For a server, follow the canonical runbook [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (firewall, health checks, upgrades, backups, rollbacks). Minimal first start:
+
+```bash
+cp .env.example .env
+chmod 600 .env
+# Set FRIDGE_PAL_JWT_SECRET, FRIDGE_PAL_DEMO_PASSWORD, and MYSQL_PASSWORD.
+docker compose config --quiet
+docker compose build --pull app
+docker compose up -d
+```
+
+The safe default binds to `127.0.0.1:8080`. For public deployment, set `FRIDGE_PAL_JWT_SECRET` (≥32 chars), `FRIDGE_PAL_DEMO_PASSWORD`, and `FRIDGE_PAL_COOKIE_SECURE=true` behind HTTPS.
 
 ## Verification
 
-Backend:
-
 ```bash
+# Backend
 cd backend
-.venv/bin/pytest -q
+.venv/bin/pytest -q                 # unit, integration, contract, security
 .venv/bin/ruff check app tests
 .venv/bin/mypy app
-```
 
-Frontend:
-
-```bash
+# Frontend
 cd frontend
 npm run lint
 npm run typecheck
 npm run build
-```
 
-Deployment configuration and image:
-
-```bash
+# Deployment configuration
 docker compose --env-file .env.example config --quiet
 docker compose --env-file .env.example build app
 ```
 
-Browser automation is not required for routine documentation or container changes. Add focused end-to-end coverage only when a changed user journey needs it.
-
 ## Environment Summary
 
-The complete variable reference and operational guidance live in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Important defaults are:
+Full reference in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Key variables:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `APP_BIND_ADDRESS` | `127.0.0.1` | Host interface exposed by Compose. |
-| `APP_PORT` | `8080` | Host HTTP port. |
-| `MYSQL_DATABASE` | `fridgital` | Production database name. |
-| `RECIPE_PROVIDER_MODE` | `fixture` | Deterministic or live recipe provider mode. |
-| `APP_TIMEZONE` | `Asia/Shanghai` | Calendar and urgency timezone. |
-| `APP_DEFAULT_LOCALE` | `en` | Initial interface locale. |
-| `SEED_DEMO_DATA` | `true` | Whether deterministic MVP inventory is seeded. |
-| `FRIDGE_PAL_JWT_SECRET` | (none) | JWT signing secret (required, >= 32 chars). |
-| `FRIDGE_PAL_DEMO_PASSWORD` | (none) | Built-in demo account password (required). |
-| `FRIDGE_PAL_COOKIE_SECURE` | `false` | Secure cookie flag for HTTPS. |
+| `APP_BIND_ADDRESS` | `127.0.0.1` | Host interface exposed by Compose |
+| `APP_PORT` | `8080` | Host HTTP port |
+| `MYSQL_DATABASE` | `fridgital` | Production database name |
+| `RECIPE_PROVIDER_MODE` | `fixture` | Deterministic or live recipe provider mode |
+| `APP_TIMEZONE` | `Asia/Shanghai` | Calendar and urgency timezone |
+| `SEED_DEMO_DATA` | `true` | Seed deterministic demo inventory |
+| `FRIDGE_PAL_JWT_SECRET` | (required) | JWT signing secret, ≥32 chars |
+| `FRIDGE_PAL_DEMO_PASSWORD` | (required) | Built-in demo account password |
+| `FRIDGE_PAL_COOKIE_SECURE` | `false` | Secure cookie flag for HTTPS |
 
-Secrets belong only in the untracked `.env` file or a future approved secret manager. They must never enter the frontend bundle or Git history.
+Secrets live only in the untracked `.env`; they must never enter the frontend bundle or Git history.
+
+## Documentation and Authority
+
+Read in this order before changing application code:
+
+1. [Product Requirements](docs/PRODUCT_REQUIREMENTS.md)
+2. [Domain and AI Contracts](docs/DOMAIN_AND_AI_CONTRACTS.md)
+3. [UX Specification](docs/UX_SPEC.md)
+4. [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
+5. [AGENTS.md](AGENTS.md)
+
+When details conflict: `Product Requirements > Domain and AI Contracts > UX Specification > visual boards`.
 
 ## MVP Non-Goals
 
-- Unrestricted public internet deployment.
-- Photo recognition, barcode scanning, or receipt import.
-- Notifications, shopping lists, nutrition tracking, or long-term meal planning.
-- Custom storage locations beyond Fridge, Freezer, and Pantry.
-- An autonomous AI agent that mutates inventory without explicit confirmation.
+- Photo recognition, barcode scanning, or receipt import
+- Notifications, shopping lists, nutrition tracking, or long-term meal planning
+- Custom storage locations beyond Fridge, Freezer, and Pantry
+- An autonomous AI agent that mutates inventory without explicit confirmation
