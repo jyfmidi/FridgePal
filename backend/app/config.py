@@ -1,15 +1,20 @@
 """Application settings loaded from environment variables."""
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
     """Runtime configuration for the Fridge Pal application service."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=str(_PROJECT_ROOT / ".env"), extra="ignore"
+    )
 
     database_url: str = "sqlite:///./fridgital.db"
     # Provider-neutral recipe adapters (vendors are swappable deployment config).
