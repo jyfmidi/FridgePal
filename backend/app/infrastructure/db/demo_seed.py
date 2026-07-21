@@ -62,11 +62,13 @@ def normalize_legacy_inventory_units(factory: sessionmaker[Session]) -> None:
         session.commit()
 
 
-def seed_demo_inventory(factory: sessionmaker[Session], today: date | None = None) -> None:
+def seed_demo_inventory_for_user(
+    factory: sessionmaker[Session], user_id: str, today: date | None = None
+) -> None:
     stored_on = today or date.today()
     with factory() as session:
         for food_key, name_en, name_zh, raw_quantity, unit, location, expiry_days in DEMO_FOODS:
-            idempotency_key = f"demo-seed-{food_key}"
+            idempotency_key = f"demo-seed-{user_id}-{food_key}"
             already_seeded = session.scalar(
                 select(InventoryLotRow.id).where(InventoryLotRow.idempotency_key == idempotency_key)
             )
@@ -94,7 +96,7 @@ def seed_demo_inventory(factory: sessionmaker[Session], today: date | None = Non
             )
             session.add(
                 InventoryLotRow(
-                    id=f"demo-lot-{food_key}",
+                    id=f"demo-lot-{user_id}-{food_key}",
                     food_definition_id=food_key,
                     quantity=quantity,
                     storage_location=location,
@@ -103,11 +105,12 @@ def seed_demo_inventory(factory: sessionmaker[Session], today: date | None = Non
                     expiry_source="LIBRARY_DEFAULT" if expires_on else "NONE",
                     status="ACTIVE",
                     idempotency_key=idempotency_key,
+                    user_id=user_id,
                 )
             )
             session.add(
                 ActivityEventRow(
-                    id=f"demo-event-{food_key}",
+                    id=f"demo-event-{user_id}-{food_key}",
                     event_type="CHECK_IN",
                     food_definition_id=food_key,
                     quantity_delta=quantity,
@@ -118,6 +121,7 @@ def seed_demo_inventory(factory: sessionmaker[Session], today: date | None = Non
                         "location": location,
                     },
                     idempotency_key=idempotency_key,
+                    user_id=user_id,
                 )
             )
         session.commit()
