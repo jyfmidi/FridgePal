@@ -12,7 +12,8 @@ withDefaults(defineProps<{
     class="fridge-pal-loader"
     :class="`fridge-pal-loader--${variant}`"
     role="status"
-    :aria-label="label"
+    aria-live="polite"
+    aria-atomic="true"
   >
     <svg
       class="fridge-pal-loader__mark"

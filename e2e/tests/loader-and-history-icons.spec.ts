@@ -26,7 +26,7 @@ test('initial hydration shows the looping Fridge Pal character', async ({ page }
 
   const navigation = page.goto('/')
 
-  const loader = page.getByRole('status', { name: 'Loading Fridge Pal…' })
+  const loader = page.getByRole('status').filter({ hasText: 'Loading Fridge Pal…' })
   await expect(loader).toBeVisible()
   await expect(loader.locator('[data-motion="wiggle-hop"]')).toBeVisible()
 
@@ -42,7 +42,7 @@ test('reduced motion keeps the hydration status without animating the character'
 
   const navigation = page.goto('/')
 
-  const loader = page.getByRole('status', { name: 'Loading Fridge Pal…' })
+  const loader = page.getByRole('status').filter({ hasText: 'Loading Fridge Pal…' })
   await expect(loader).toBeVisible()
   const character = loader.locator('[data-motion="wiggle-hop"]')
   await expect(character).toBeVisible()
