@@ -73,6 +73,9 @@ def check_in_food(session: Session, user_id: str, command: CheckInCommand) -> Ch
             recommended_storage=command.location,
         )
         session.add(food)
+        # The rows below store scalar foreign keys instead of ORM relationships.
+        # Persist the parent explicitly so strict databases never flush a child first.
+        session.flush()
     else:
         converted = convert(Quantity(command.quantity, command.unit), food.base_unit)
         stored_quantity = converted.value
