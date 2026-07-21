@@ -10,16 +10,20 @@ export type AppIconName =
   | 'ingredients'
   | 'instructions'
   | 'clock'
+  | 'consume'
+  | 'cooking-pot'
   | 'portions'
   | 'remove'
   | 'save'
   | 'search'
   | 'storage'
+  | 'stock-in'
   | 'swap'
   | 'tombstone'
   | 'trash'
   | 'undo'
   | 'unit'
+  | 'move'
 
 withDefaults(defineProps<{ name: AppIconName; size?: number }>(), { size: 20 })
 </script>
@@ -100,6 +104,23 @@ withDefaults(defineProps<{ name: AppIconName; size?: number }>(), { size: 20 })
       <rect x="4" y="3" width="16" height="18" rx="3" />
       <path d="M4 10h16M8 6.5h.01M8 14v3" />
     </template>
+    <template v-else-if="name === 'stock-in'">
+      <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+      <path d="M8 14h8M12 3v8M8.5 7.5 12 11l3.5-3.5" />
+    </template>
+    <template v-else-if="name === 'consume'">
+      <path d="M7 3v7M4.5 3v4.5A2.5 2.5 0 0 0 7 10a2.5 2.5 0 0 0 2.5-2.5V3M7 10v11" />
+      <path d="M16.5 3c-2 2-2.5 4.7-2.5 7h4.5M17 3v18" />
+    </template>
+    <template v-else-if="name === 'move'">
+      <rect x="3" y="7" width="6" height="10" rx="1.5" />
+      <rect x="15" y="7" width="6" height="10" rx="1.5" />
+      <path d="M9 12h6M12.5 9.5 15 12l-2.5 2.5" />
+    </template>
+    <template v-else-if="name === 'cooking-pot'">
+      <path d="M5 10h14v7a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z" />
+      <path d="M3 10h18M9 6h6M10.5 4h3M2 13h3M19 13h3" />
+    </template>
     <template v-else-if="name === 'chef'">
       <path d="M6 13c0 4 2.7 6 6 6s6-2 6-6" />
       <path d="M8 13V8a4 4 0 0 1 8 0v5" />
@@ -114,9 +135,8 @@ withDefaults(defineProps<{ name: AppIconName; size?: number }>(), { size: 20 })
       <path d="M10 11v6M14 11v6" />
     </template>
     <template v-else-if="name === 'undo'">
-      <path d="M3 10h10a5 5 0 0 1 5 5v1" />
-      <path d="M3 10l4-4M3 10l4 4" />
-      <path d="M13 6H8a4 4 0 0 0-4 4v0a4 4 0 0 0 4 4h5" />
+      <path d="M9 7 4 12l5 5" />
+      <path d="M5 12h8a6 6 0 0 1 6 6v1" />
     </template>
   </svg>
 </template>
