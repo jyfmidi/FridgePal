@@ -1,15 +1,13 @@
 import pytest
-from sqlalchemy.orm import Session
-
 from app.auth.service import (
     LoginError,
     RegisterError,
-    UserContext,
     authenticate_user,
     create_user,
     get_user_by_id,
 )
 from app.infrastructure.db.session import create_database
+from sqlalchemy.orm import Session
 
 
 @pytest.fixture()

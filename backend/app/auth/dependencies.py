@@ -25,11 +25,17 @@ def current_user_factory(
     def current_user(request: Request) -> UserContext:
         token = request.cookies.get(COOKIE_NAME)
         if not token:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+            )
         try:
             payload = decode_token(token)
         except TokenError as exc:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session") from exc
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid session",
+            ) from exc
         user_id = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")

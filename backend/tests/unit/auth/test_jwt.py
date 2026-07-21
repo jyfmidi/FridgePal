@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 import pytest
-
 from app.auth.jwt import TokenError, decode_token, encode_token
 
 
