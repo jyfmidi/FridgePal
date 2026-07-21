@@ -5,6 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from app.config import get_settings
+from app.infrastructure.db.demo_seed import seed_demo_inventory
 from app.infrastructure.db.models import FoodDefinitionRow, InventoryLotRow
 from app.infrastructure.db.session import create_database
 from app.main import create_app
@@ -73,6 +74,10 @@ def test_demo_seed_is_idempotent_and_makes_storage_ready(
     database_path = tmp_path / "demo.db"
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
     monkeypatch.setenv("SEED_DEMO_DATA", "true")
+    monkeypatch.setattr(
+        "app.main.seed_demo_inventory",
+        lambda factory: seed_demo_inventory(factory, today=date(2026, 7, 18)),
+    )
     get_settings.cache_clear()
 
     first_client = TestClient(create_app())
