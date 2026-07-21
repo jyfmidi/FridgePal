@@ -4,6 +4,7 @@ Covers lot listing, manual lot edit, manual consumption (FEFO reduce),
 discard, and the cooking preview/commit deduction gate.
 """
 
+import uuid
 from pathlib import Path
 
 from app.config import get_settings
@@ -16,10 +17,15 @@ from sqlalchemy.orm import Session
 
 
 def make_client(tmp_path: Path, monkeypatch, name: str = "mutations.db") -> TestClient:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / name}")
+    db_path = tmp_path / f"test_{uuid.uuid4().hex}.db"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
     monkeypatch.setenv("SEED_DEMO_DATA", "false")
     get_settings.cache_clear()
-    return TestClient(create_app())
+    client = TestClient(create_app())
+    # Register a test user — this sets the fp_session cookie
+    r = client.post("/api/auth/register", json={"username": "tester", "password": "password123"})
+    assert r.status_code == 201, r.text
+    return client
 
 
 def check_in(
@@ -135,12 +141,13 @@ def test_check_in_rejects_food_specific_count_units(tmp_path: Path, monkeypatch)
 
 def test_lots_listing_returns_fefo_order(tmp_path: Path, monkeypatch) -> None:
     client = make_client(tmp_path, monkeypatch)
-    later = check_in(client, "lot-later", expires_on="2026-07-25", quantity="100")
-    earlier = check_in(client, "lot-earlier", expires_on="2026-07-19", quantity="250")
+    # Use kale (not in demo seed) to avoid interference
+    later = check_in(client, "lot-later", food="kale", expires_on="2026-07-25", quantity="100")
+    earlier = check_in(client, "lot-earlier", food="kale", expires_on="2026-07-19", quantity="250")
     check_in(client, "lot-other-location", location="PANTRY")
-    check_in(client, "lot-other-food", food="tofu", unit="piece")
+    check_in(client, "lot-other-food", food="chickpeas", unit="g")
 
-    response = client.get("/api/inventory/lots?foodKey=spinach&location=FRIDGE")
+    response = client.get("/api/inventory/lots?foodKey=kale&location=FRIDGE")
     assert response.status_code == 200
     lots = response.json()["lots"]
     assert [lot["lotId"] for lot in lots] == [earlier, later]
@@ -159,7 +166,8 @@ def test_lots_listing_returns_fefo_order(tmp_path: Path, monkeypatch) -> None:
 
 def test_patch_lot_quantity_and_location(tmp_path: Path, monkeypatch) -> None:
     client = make_client(tmp_path, monkeypatch)
-    lot_id = check_in(client, "patch-lot", quantity="250")
+    # Use kale (not in demo seed) to avoid interference
+    lot_id = check_in(client, "patch-lot", food="kale", quantity="250", unit="g")
 
     edited = client.patch(
         f"/api/lots/{lot_id}",
@@ -167,15 +175,15 @@ def test_patch_lot_quantity_and_location(tmp_path: Path, monkeypatch) -> None:
     )
     assert edited.status_code == 200
     assert edited.json() == {"lotId": lot_id, "replayed": False}
-    assert storage_quantity(client, "spinach", "FRIDGE") == "200"
+    assert storage_quantity(client, "kale", "FRIDGE") == "200"
 
     moved = client.patch(
         f"/api/lots/{lot_id}",
         json={"idempotencyKey": "patch-2", "location": "FREEZER"},
     )
     assert moved.status_code == 200
-    assert storage_quantity(client, "spinach", "FRIDGE") is None
-    assert storage_quantity(client, "spinach", "FREEZER") == "200"
+    assert storage_quantity(client, "kale", "FRIDGE") is None
+    assert storage_quantity(client, "kale", "FREEZER") == "200"
 
     replay = client.patch(
         f"/api/lots/{lot_id}",
@@ -184,7 +192,7 @@ def test_patch_lot_quantity_and_location(tmp_path: Path, monkeypatch) -> None:
     assert replay.status_code == 200
     assert replay.json() == {"lotId": lot_id, "replayed": True}
     # No double application and no move back from the replayed edit.
-    assert storage_quantity(client, "spinach", "FREEZER") == "200"
+    assert storage_quantity(client, "kale", "FREEZER") == "200"
 
     missing = client.patch(
         "/api/lots/no-such-lot",
@@ -272,14 +280,15 @@ def test_patch_base_unit_converts_every_lot_transactionally(
 
 def test_reduce_consumes_fefo_and_is_idempotent(tmp_path: Path, monkeypatch) -> None:
     client = make_client(tmp_path, monkeypatch)
-    earlier = check_in(client, "reduce-earlier", expires_on="2026-07-19", quantity="100")
-    later = check_in(client, "reduce-later", expires_on="2026-07-25", quantity="300")
+    # Use kale (not in demo seed) to avoid interference
+    earlier = check_in(client, "reduce-earlier", food="kale", expires_on="2026-07-19", quantity="100")
+    later = check_in(client, "reduce-later", food="kale", expires_on="2026-07-25", quantity="300")
 
     reduced = client.post(
         "/api/inventory/reduce",
         json={
             "idempotencyKey": "reduce-1",
-            "foodKey": "spinach",
+            "foodKey": "kale",
             "location": "FRIDGE",
             "amount": "150",
             "unit": "g",
@@ -293,9 +302,9 @@ def test_reduce_consumes_fefo_and_is_idempotent(tmp_path: Path, monkeypatch) -> 
         {"lotId": earlier, "deducted": "100"},
         {"lotId": later, "deducted": "50"},
     ]
-    assert storage_quantity(client, "spinach", "FRIDGE") == "250"
+    assert storage_quantity(client, "kale", "FRIDGE") == "250"
 
-    lots = client.get("/api/inventory/lots?foodKey=spinach&location=FRIDGE").json()["lots"]
+    lots = client.get("/api/inventory/lots?foodKey=kale&location=FRIDGE").json()["lots"]
     by_id = {lot["lotId"]: lot for lot in lots}
     assert by_id[earlier]["status"] == "DEPLETED"
     assert by_id[earlier]["quantity"] == "0"
@@ -305,7 +314,7 @@ def test_reduce_consumes_fefo_and_is_idempotent(tmp_path: Path, monkeypatch) -> 
         "/api/inventory/reduce",
         json={
             "idempotencyKey": "reduce-1",
-            "foodKey": "spinach",
+            "foodKey": "kale",
             "location": "FRIDGE",
             "amount": "150",
             "unit": "g",
@@ -314,7 +323,7 @@ def test_reduce_consumes_fefo_and_is_idempotent(tmp_path: Path, monkeypatch) -> 
     assert replay.status_code == 200
     assert replay.json()["replayed"] is True
     assert replay.json()["newQuantity"] == "250"
-    assert storage_quantity(client, "spinach", "FRIDGE") == "250"
+    assert storage_quantity(client, "kale", "FRIDGE") == "250"
 
     engine = client.app.state.database_engine
     with Session(engine) as session:
@@ -336,7 +345,7 @@ def test_reduce_consumes_fefo_and_is_idempotent(tmp_path: Path, monkeypatch) -> 
         "/api/inventory/reduce",
         json={
             "idempotencyKey": "reduce-2",
-            "foodKey": "spinach",
+            "foodKey": "kale",
             "location": "FRIDGE",
             "amount": "9999",
             "unit": "g",
@@ -344,19 +353,20 @@ def test_reduce_consumes_fefo_and_is_idempotent(tmp_path: Path, monkeypatch) -> 
     )
     assert insufficient.status_code == 409
     assert "insufficient quantity" in insufficient.json()["detail"]
-    assert storage_quantity(client, "spinach", "FRIDGE") == "250"
+    assert storage_quantity(client, "kale", "FRIDGE") == "250"
     get_settings.cache_clear()
 
 
 def test_discard_lot(tmp_path: Path, monkeypatch) -> None:
     client = make_client(tmp_path, monkeypatch)
-    keep = check_in(client, "discard-keep", quantity="100")
-    gone = check_in(client, "discard-gone", quantity="150", expires_on="2026-07-25")
+    # Use kale (not in demo seed) to avoid interference
+    keep = check_in(client, "discard-keep", food="kale", quantity="100")
+    gone = check_in(client, "discard-gone", food="kale", quantity="150", expires_on="2026-07-25")
 
     discarded = client.post(f"/api/lots/{gone}/discard", json={"idempotencyKey": "discard-1"})
     assert discarded.status_code == 200
     assert discarded.json() == {"lotId": gone, "replayed": False}
-    assert storage_quantity(client, "spinach", "FRIDGE") == "100"
+    assert storage_quantity(client, "kale", "FRIDGE") == "100"
 
     replay = client.post(f"/api/lots/{gone}/discard", json={"idempotencyKey": "discard-1"})
     assert replay.status_code == 200
@@ -368,7 +378,7 @@ def test_discard_lot(tmp_path: Path, monkeypatch) -> None:
     missing = client.post("/api/lots/no-such-lot/discard", json={"idempotencyKey": "discard-3"})
     assert missing.status_code == 404
 
-    lots = client.get("/api/inventory/lots?foodKey=spinach&location=FRIDGE").json()["lots"]
+    lots = client.get("/api/inventory/lots?foodKey=kale&location=FRIDGE").json()["lots"]
     assert [lot["lotId"] for lot in lots] == [keep]
     get_settings.cache_clear()
 
@@ -377,34 +387,35 @@ def test_cooking_preview_reports_shortfall_and_persists_nothing(
     tmp_path: Path, monkeypatch
 ) -> None:
     client = make_client(tmp_path, monkeypatch)
-    lot_id = check_in(client, "preview-lot", quantity="300")
+    # Use kale and chickpeas (not in demo seed) to avoid interference
+    lot_id = check_in(client, "preview-lot", food="kale", quantity="300")
 
     preview = client.post(
         "/api/cooking/preview",
         json={
             "items": [
-                {"foodKey": "spinach", "amount": "300", "unit": "g"},
-                {"foodKey": "tofu", "amount": "2", "unit": "piece"},
+                {"foodKey": "kale", "amount": "300", "unit": "g"},
+                {"foodKey": "chickpeas", "amount": "200", "unit": "g"},
             ]
         },
     )
     assert preview.status_code == 200
     body = preview.json()
     assert body["feasible"] is False
-    spinach_line = next(line for line in body["lines"] if line["foodKey"] == "spinach")
-    assert spinach_line["requested"] == "300"
-    assert spinach_line["allocated"] == "300"
-    assert spinach_line["shortfall"] == "0"
-    assert spinach_line["allocations"] == [
+    kale_line = next(line for line in body["lines"] if line["foodKey"] == "kale")
+    assert kale_line["requested"] == "300"
+    assert kale_line["allocated"] == "300"
+    assert kale_line["shortfall"] == "0"
+    assert kale_line["allocations"] == [
         {"lotId": lot_id, "quantity": "300", "lotQuantity": "300"}
     ]
-    tofu_line = next(line for line in body["lines"] if line["foodKey"] == "tofu")
-    assert tofu_line["allocated"] == "0"
-    assert tofu_line["shortfall"] == "2"
-    assert tofu_line["allocations"] == []
+    chickpeas_line = next(line for line in body["lines"] if line["foodKey"] == "chickpeas")
+    assert chickpeas_line["allocated"] == "0"
+    assert chickpeas_line["shortfall"] == "200"
+    assert chickpeas_line["allocations"] == []
 
     # Preview is a pure read: storage stays untouched.
-    assert storage_quantity(client, "spinach", "FRIDGE") == "300"
+    assert storage_quantity(client, "kale", "FRIDGE") == "300"
     engine = client.app.state.database_engine
     with Session(engine) as session:
         assert session.scalar(select(func.count()).select_from(InventoryTransactionRow)) == 0
@@ -415,15 +426,16 @@ def test_cooking_commit_is_atomic_stale_checked_and_idempotent(
     tmp_path: Path, monkeypatch
 ) -> None:
     client = make_client(tmp_path, monkeypatch)
-    spinach_lot = check_in(client, "commit-spinach", quantity="500")
-    tofu_lot = check_in(client, "commit-tofu", food="tofu", unit="piece", quantity="4")
+    # Use kale and chickpeas (not in demo seed) to avoid interference
+    kale_lot = check_in(client, "commit-kale", food="kale", quantity="500")
+    chickpeas_lot = check_in(client, "commit-chickpeas", food="chickpeas", unit="g", quantity="4")
 
     lines = [
-        {"foodKey": "spinach", "allocations": [
-            {"lotId": spinach_lot, "quantity": "200", "lotQuantity": "500"}
+        {"foodKey": "kale", "allocations": [
+            {"lotId": kale_lot, "quantity": "200", "lotQuantity": "500"}
         ]},
-        {"foodKey": "tofu", "allocations": [
-            {"lotId": tofu_lot, "quantity": "1", "lotQuantity": "4"}
+        {"foodKey": "chickpeas", "allocations": [
+            {"lotId": chickpeas_lot, "quantity": "1", "lotQuantity": "4"}
         ]},
     ]
 
@@ -432,20 +444,20 @@ def test_cooking_commit_is_atomic_stale_checked_and_idempotent(
         json={
             "idempotencyKey": "commit-stale",
             "lines": [
-                {"foodKey": "spinach", "allocations": [
-                    {"lotId": spinach_lot, "quantity": "200", "lotQuantity": "500"}
+                {"foodKey": "kale", "allocations": [
+                    {"lotId": kale_lot, "quantity": "200", "lotQuantity": "500"}
                 ]},
-                {"foodKey": "tofu", "allocations": [
-                    {"lotId": tofu_lot, "quantity": "1", "lotQuantity": "3"}
+                {"foodKey": "chickpeas", "allocations": [
+                    {"lotId": chickpeas_lot, "quantity": "1", "lotQuantity": "3"}
                 ]},
             ],
         },
     )
     assert stale.status_code == 409
     assert stale.json()["detail"] == "stale preview"
-    # Rollback is total: not even the valid spinach line was applied.
-    assert storage_quantity(client, "spinach", "FRIDGE") == "500"
-    assert storage_quantity(client, "tofu", "FRIDGE") == "4"
+    # Rollback is total: not even the valid kale line was applied.
+    assert storage_quantity(client, "kale", "FRIDGE") == "500"
+    assert storage_quantity(client, "chickpeas", "FRIDGE") == "4"
 
     committed = client.post(
         "/api/cooking/commit",
@@ -455,8 +467,8 @@ def test_cooking_commit_is_atomic_stale_checked_and_idempotent(
     body = committed.json()
     assert body["replayed"] is False
     session_id = body["sessionId"]
-    assert storage_quantity(client, "spinach", "FRIDGE") == "300"
-    assert storage_quantity(client, "tofu", "FRIDGE") == "3"
+    assert storage_quantity(client, "kale", "FRIDGE") == "300"
+    assert storage_quantity(client, "chickpeas", "FRIDGE") == "3"
 
     replay = client.post(
         "/api/cooking/commit",
@@ -464,7 +476,7 @@ def test_cooking_commit_is_atomic_stale_checked_and_idempotent(
     )
     assert replay.status_code == 200
     assert replay.json() == {"sessionId": session_id, "replayed": True}
-    assert storage_quantity(client, "spinach", "FRIDGE") == "300"
+    assert storage_quantity(client, "kale", "FRIDGE") == "300"
 
     engine = client.app.state.database_engine
     with Session(engine) as session:
