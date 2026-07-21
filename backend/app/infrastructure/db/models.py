@@ -14,6 +14,16 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+class UserRow(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    username: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    is_demo: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class FoodDefinitionRow(Base):
     __tablename__ = "food_definitions"
 
@@ -32,6 +42,7 @@ class InventoryLotRow(Base):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     food_definition_id: Mapped[str] = mapped_column(ForeignKey("food_definitions.id"), index=True)
     quantity: Mapped[Decimal] = mapped_column(Numeric(18, 6))
     storage_location: Mapped[str] = mapped_column(String(20), index=True)
@@ -47,6 +58,7 @@ class InventoryTransactionRow(Base):
     __tablename__ = "inventory_transactions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     lot_id: Mapped[str] = mapped_column(ForeignKey("inventory_lots.id"), index=True)
     cooking_session_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     reason: Mapped[str] = mapped_column(String(40), index=True)
@@ -61,6 +73,7 @@ class ActivityEventRow(Base):
     __tablename__ = "activity_events"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     event_type: Mapped[str] = mapped_column(String(40), index=True)
     food_definition_id: Mapped[str] = mapped_column(ForeignKey("food_definitions.id"), index=True)
     quantity_delta: Mapped[Decimal] = mapped_column(Numeric(18, 6))
@@ -73,6 +86,7 @@ class RescueSessionRow(Base):
     __tablename__ = "rescue_sessions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     status: Mapped[str] = mapped_column(String(20), default="SEARCHED", index=True)
     selected_foods: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
     servings: Mapped[int] = mapped_column()
@@ -90,6 +104,7 @@ class SavedRecipeRow(Base):
     __tablename__ = "saved_recipes"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     base_yield: Mapped[int] = mapped_column()
