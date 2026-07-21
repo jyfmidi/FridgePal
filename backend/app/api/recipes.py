@@ -10,6 +10,7 @@ from app.application.recipes.service import (
     list_recipes,
     save_recipe,
 )
+from app.auth.service import UserContext
 
 
 class RecipeIngredientInput(BaseModel):
@@ -37,21 +38,23 @@ class SaveRecipeRequest(BaseModel):
     source_publisher: str | None = Field(default=None, alias="sourcePublisher", max_length=200)
 
 
-def build_recipe_router(session_provider) -> APIRouter:
+def build_recipe_router(session_provider, current_user) -> APIRouter:
     api = APIRouter()
 
     @api.get("/recipes")
     def list_all(
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, list[dict[str, object]]]:
-        return {"recipes": list_recipes(session)}
+        return {"recipes": list_recipes(session, user.user_id)}
 
     @api.get("/recipes/{recipe_id}")
     def get_one(
         recipe_id: str,
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, object]:
-        result = get_recipe(session, recipe_id)
+        result = get_recipe(session, user.user_id, recipe_id)
         if result is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="recipe not found")
         return result
@@ -61,9 +64,11 @@ def build_recipe_router(session_provider) -> APIRouter:
         payload: SaveRecipeRequest,
         response: Response,
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, object]:
         result = save_recipe(
             session,
+            user.user_id,
             SaveRecipeCommand(
                 id=payload.id,
                 name=payload.name,
@@ -95,9 +100,11 @@ def build_recipe_router(session_provider) -> APIRouter:
         recipe_id: str,
         payload: SaveRecipeRequest,
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, object]:
         result = save_recipe(
             session,
+            user.user_id,
             SaveRecipeCommand(
                 id=recipe_id,
                 name=payload.name,

@@ -1,10 +1,22 @@
 """Contract tests for the saved recipe API."""
 
+import uuid
 from pathlib import Path
 
 from app.config import get_settings
 from app.main import create_app
 from fastapi.testclient import TestClient
+
+
+def _fresh_client(monkeypatch, tmp_path) -> TestClient:
+    db_path = tmp_path / f"test_{uuid.uuid4().hex}.db"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("SEED_DEMO_DATA", "false")
+    get_settings.cache_clear()
+    client = TestClient(create_app())
+    r = client.post("/api/auth/register", json={"username": "tester", "password": "password123"})
+    assert r.status_code == 201
+    return client
 
 
 def _recipe_payload(**overrides: object) -> dict:
@@ -32,10 +44,7 @@ def test_create_saved_recipe(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'recipes.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     response = client.post("/api/recipes", json=_recipe_payload())
 
@@ -51,10 +60,7 @@ def test_get_saved_recipe(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'recipes.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     create_response = client.post("/api/recipes", json=_recipe_payload())
     assert create_response.status_code == 201
@@ -84,10 +90,7 @@ def test_list_saved_recipes(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'recipes.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     client.post("/api/recipes", json=_recipe_payload(name="Recipe One"))
     client.post("/api/recipes", json=_recipe_payload(name="Recipe Two"))
@@ -107,10 +110,7 @@ def test_update_saved_recipe(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'recipes.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     create_response = client.post("/api/recipes", json=_recipe_payload())
     assert create_response.status_code == 201
@@ -133,10 +133,7 @@ def test_get_unknown_recipe_returns_404(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'recipes.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     response = client.get("/api/recipes/nonexistent")
 
@@ -149,10 +146,7 @@ def test_create_rejects_empty_name(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'recipes.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     response = client.post("/api/recipes", json=_recipe_payload(name=""))
 
@@ -165,10 +159,7 @@ def test_create_rejects_empty_ingredients(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'recipes.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     response = client.post("/api/recipes", json=_recipe_payload(ingredients=[]))
 

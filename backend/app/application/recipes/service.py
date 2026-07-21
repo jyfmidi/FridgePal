@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.infrastructure.db.models import SavedRecipeRow
@@ -49,18 +50,23 @@ def _serialize_recipe(row: SavedRecipeRow) -> dict[str, object]:
     }
 
 
-def save_recipe(session: Session, command: SaveRecipeCommand) -> SaveRecipeResult:
+def save_recipe(session: Session, user_id: str, command: SaveRecipeCommand) -> SaveRecipeResult:
     was_found = False
 
     if command.id is not None:
-        existing = session.get(SavedRecipeRow, command.id)
+        existing = session.scalar(
+            select(SavedRecipeRow).where(
+                SavedRecipeRow.id == command.id,
+                SavedRecipeRow.user_id == user_id,
+            )
+        )
         if existing is not None:
             was_found = True
             row = existing
         else:
-            row = SavedRecipeRow(id=command.id)
+            row = SavedRecipeRow(id=command.id, user_id=user_id)
     else:
-        row = SavedRecipeRow(id=str(uuid4()))
+        row = SavedRecipeRow(id=str(uuid4()), user_id=user_id)
 
     row.name = command.name
     row.description = command.description
@@ -79,20 +85,34 @@ def save_recipe(session: Session, command: SaveRecipeCommand) -> SaveRecipeResul
     return SaveRecipeResult(id=row.id, created=not was_found)
 
 
-def list_recipes(session: Session) -> list[dict[str, object]]:
-    rows = session.query(SavedRecipeRow).order_by(SavedRecipeRow.created_at.desc()).all()
+def list_recipes(session: Session, user_id: str) -> list[dict[str, object]]:
+    rows = session.scalars(
+        select(SavedRecipeRow)
+        .where(SavedRecipeRow.user_id == user_id)
+        .order_by(SavedRecipeRow.created_at.desc())
+    ).all()
     return [_serialize_recipe(row) for row in rows]
 
 
-def get_recipe(session: Session, recipe_id: str) -> dict[str, object] | None:
-    row = session.get(SavedRecipeRow, recipe_id)
+def get_recipe(session: Session, user_id: str, recipe_id: str) -> dict[str, object] | None:
+    row = session.scalar(
+        select(SavedRecipeRow).where(
+            SavedRecipeRow.id == recipe_id,
+            SavedRecipeRow.user_id == user_id,
+        )
+    )
     if row is None:
         return None
     return _serialize_recipe(row)
 
 
-def update_last_cooked(session: Session, recipe_id: str, portion: float) -> bool:
-    row = session.get(SavedRecipeRow, recipe_id)
+def update_last_cooked(session: Session, user_id: str, recipe_id: str, portion: float) -> bool:
+    row = session.scalar(
+        select(SavedRecipeRow).where(
+            SavedRecipeRow.id == recipe_id,
+            SavedRecipeRow.user_id == user_id,
+        )
+    )
     if row is None:
         return False
     row.last_cooked_portion = portion
