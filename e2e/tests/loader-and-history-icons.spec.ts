@@ -7,13 +7,18 @@ const emptyStorage = {
 
 function controlledStorageResponse(page: Page) {
   let releaseResponse!: () => void
+  let requestCount = 0
   const responseReleased = new Promise<void>((resolve) => {
     releaseResponse = resolve
   })
 
   return {
+    get requestCount() {
+      return requestCount
+    },
     release: releaseResponse,
     install: () => page.route('**/api/storage', async (route: Route) => {
+      requestCount += 1
       await responseReleased
       await route.fulfill({ json: emptyStorage })
     }),
@@ -33,6 +38,7 @@ test('initial hydration shows the looping Fridge Pal character', async ({ page }
   storage.release()
   await navigation
   await expect(loader).toBeHidden()
+  await expect.poll(() => storage.requestCount).toBe(1)
 })
 
 test('reduced motion keeps the hydration status without animating the character', async ({ page }) => {
@@ -72,6 +78,18 @@ test('History uses a clear stock-in icon and curated food identity', async ({ pa
           createdAt: '2026-07-21T08:00:00Z',
           reversible: true,
         },
+        {
+          id: 'event-cooking-empty',
+          eventType: 'COOKING',
+          foodKey: 'spinach',
+          quantityDelta: '0',
+          displaySnapshot: {
+            sessionName: 'Quick supper',
+            items: [],
+          },
+          createdAt: '2026-07-21T08:05:00Z',
+          reversible: false,
+        },
       ],
     },
   }))
@@ -84,4 +102,8 @@ test('History uses a clear stock-in icon and curated food identity', async ({ pa
   await expect(entry.locator('[data-event-icon="stock-in"]')).toBeVisible()
   await expect(entry.locator('.food-token__icon')).toBeVisible()
   await expect(entry.locator('.food-token__monogram')).toHaveCount(0)
+
+  const cookingEntry = page.locator('[data-event-icon="cooking-pot"]').locator('..')
+  await expect(cookingEntry).toContainText('Quick supper')
+  await expect(cookingEntry.locator('.history-event__meta')).toHaveCount(0)
 })

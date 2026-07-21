@@ -107,6 +107,7 @@ withDefaults(defineProps<{ name: AppIconName; size?: number }>(), { size: 20 })
     <template v-else-if="name === 'stock-in'">
       <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
       <path d="M8 14h8M12 3v8M8.5 7.5 12 11l3.5-3.5" />
+      <path d="M18 3v4M16 5h4" />
     </template>
     <template v-else-if="name === 'consume'">
       <path d="M7 3v7M4.5 3v4.5A2.5 2.5 0 0 0 7 10a2.5 2.5 0 0 0 2.5-2.5V3M7 10v11" />
@@ -119,7 +120,8 @@ withDefaults(defineProps<{ name: AppIconName; size?: number }>(), { size: 20 })
     </template>
     <template v-else-if="name === 'cooking-pot'">
       <path d="M5 10h14v7a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z" />
-      <path d="M3 10h18M9 6h6M10.5 4h3M2 13h3M19 13h3" />
+      <path d="M3 10h18M7 8h10M2 13h3M19 13h3" />
+      <path d="M9 6c-1-1 1-2 0-3M15 6c-1-1 1-2 0-3" />
     </template>
     <template v-else-if="name === 'chef'">
       <path d="M6 13c0 4 2.7 6 6 6s6-2 6-6" />
