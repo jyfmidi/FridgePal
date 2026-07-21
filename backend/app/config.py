@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +22,9 @@ class Settings(BaseSettings):
     app_timezone: str = "Asia/Shanghai"
     app_default_locale: str = "en"
     seed_demo_data: bool = True
+    jwt_secret: str = Field(default="", alias="FRIDGE_PAL_JWT_SECRET")
+    demo_password: str = Field(default="", alias="FRIDGE_PAL_DEMO_PASSWORD")
+    cookie_secure: bool = Field(default=False, alias="FRIDGE_PAL_COOKIE_SECURE")
 
 
 @lru_cache
