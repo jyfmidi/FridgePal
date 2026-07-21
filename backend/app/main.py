@@ -71,7 +71,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Fridge Pal", version=APP_VERSION)
     app.include_router(health_router, prefix="/api")
     app.include_router(build_auth_router(get_session, session_factory, current_user), prefix="/api")
-    app.include_router(build_inventory_router(get_session), prefix="/api")
+    app.include_router(build_inventory_router(get_session, current_user), prefix="/api")
     try:
         recipe_adapters = build_recipe_adapters(settings)
         app.include_router(build_rescue_router(get_session, recipe_adapters), prefix="/api")

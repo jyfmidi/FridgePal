@@ -27,6 +27,7 @@ from app.application.inventory.service import (
     list_lots,
     reduce_inventory,
 )
+from app.auth.service import UserContext
 from app.domain.errors import DomainError
 from app.domain.inventory_unit import canonical_inventory_unit
 from app.domain.types import ExpirySource, StorageLocation
@@ -168,7 +169,7 @@ class CookingCommitRequest(BaseModel):
     lines: list[CookingCommitLine] = Field(min_length=1)
 
 
-def build_inventory_router(session_provider) -> APIRouter:
+def build_inventory_router(session_provider, current_user) -> APIRouter:
     api = APIRouter()
 
     @api.post("/inventory/check-in", status_code=status.HTTP_201_CREATED)
@@ -176,10 +177,12 @@ def build_inventory_router(session_provider) -> APIRouter:
         payload: CheckInRequest,
         response: Response,
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, object]:
         try:
             result = check_in_food(
                 session,
+                user.user_id,
                 CheckInCommand(
                     idempotency_key=payload.idempotency_key,
                     food_key=payload.food_key,
@@ -206,27 +209,31 @@ def build_inventory_router(session_provider) -> APIRouter:
     @api.get("/storage")
     def storage_overview(
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
         today: Annotated[date | None, Query()] = None,
     ) -> dict[str, list[dict[str, object]]]:
-        return get_storage_overview(session, today or date.today())
+        return get_storage_overview(session, user.user_id, today or date.today())
 
     @api.get("/inventory/lots")
     def lots(
         session: Annotated[Session, Depends(session_provider)],
         food_key: Annotated[str, Query(alias="foodKey", min_length=1, max_length=100)],
         location: Annotated[StorageLocation, Query()],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, list[dict[str, object]]]:
-        return list_lots(session, food_key, location.value)
+        return list_lots(session, user.user_id, food_key, location.value)
 
     @api.patch("/lots/{lot_id}")
     def patch_lot(
         lot_id: str,
         payload: EditLotRequest,
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, object]:
         try:
             result = edit_lot(
                 session,
+                user.user_id,
                 EditLotCommand(
                     idempotency_key=payload.idempotency_key,
                     lot_id=lot_id,
@@ -251,10 +258,12 @@ def build_inventory_router(session_provider) -> APIRouter:
     def reduce(
         payload: ReduceRequest,
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, object]:
         try:
             result = reduce_inventory(
                 session,
+                user.user_id,
                 ReduceCommand(
                     idempotency_key=payload.idempotency_key,
                     food_key=payload.food_key,
@@ -282,9 +291,10 @@ def build_inventory_router(session_provider) -> APIRouter:
         lot_id: str,
         payload: DiscardRequest,
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, object]:
         try:
-            result = discard_lot(session, lot_id, payload.idempotency_key)
+            result = discard_lot(session, user.user_id, lot_id, payload.idempotency_key)
         except LotNotFoundError as error:
             session.rollback()
             raise HTTPException(status_code=404, detail=str(error)) from error
@@ -297,10 +307,12 @@ def build_inventory_router(session_provider) -> APIRouter:
     def preview(
         payload: CookingPreviewRequest,
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, object]:
         try:
             return cooking_preview(
                 session,
+                user.user_id,
                 [
                     PreviewItem(food_key=item.food_key, amount=item.amount, unit=item.unit)
                     for item in payload.items
@@ -316,10 +328,12 @@ def build_inventory_router(session_provider) -> APIRouter:
         payload: CookingCommitRequest,
         response: Response,
         session: Annotated[Session, Depends(session_provider)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> dict[str, object]:
         try:
             result = cooking_commit(
                 session,
+                user.user_id,
                 CookingCommitCommand(
                     idempotency_key=payload.idempotency_key,
                     session_name=payload.session_name,

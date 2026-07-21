@@ -2,7 +2,6 @@
 
 from datetime import date, timedelta
 from decimal import Decimal
-from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -40,25 +39,7 @@ def normalize_legacy_inventory_units(factory: sessionmaker[Session]) -> None:
             )
         ).all()
         for food in foods:
-            previous_unit = food.base_unit
             food.base_unit = "piece"
-            session.add(
-                ActivityEventRow(
-                    id=str(uuid4()),
-                    event_type="EDIT",
-                    food_definition_id=food.id,
-                    quantity_delta=Decimal(0),
-                    display_snapshot={
-                        "foodKey": food.id,
-                        "changes": {
-                            "unit": {"from": previous_unit, "to": "piece"},
-                        },
-                        "quantityDelta": "0",
-                        "migration": "canonical-inventory-units-v1",
-                    },
-                    idempotency_key=f"canonical-unit-v1:{food.id}",
-                )
-            )
         session.commit()
 
 

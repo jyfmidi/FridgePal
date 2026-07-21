@@ -43,14 +43,18 @@ class CheckInResult:
     replayed: bool
 
 
-def check_in_food(session: Session, command: CheckInCommand) -> CheckInResult:
+def check_in_food(session: Session, user_id: str, command: CheckInCommand) -> CheckInResult:
     replay = session.scalar(
-        select(InventoryLotRow).where(InventoryLotRow.idempotency_key == command.idempotency_key)
+        select(InventoryLotRow).where(
+            InventoryLotRow.idempotency_key == command.idempotency_key,
+            InventoryLotRow.user_id == user_id,
+        )
     )
     if replay is not None:
         event = session.scalar(
             select(ActivityEventRow).where(
-                ActivityEventRow.idempotency_key == command.idempotency_key
+                ActivityEventRow.idempotency_key == command.idempotency_key,
+                ActivityEventRow.user_id == user_id,
             )
         )
         if event is None:  # The transaction contract makes this unreachable for committed data.
@@ -84,6 +88,7 @@ def check_in_food(session: Session, command: CheckInCommand) -> CheckInResult:
         expiry_source=command.expiry_source,
         status="ACTIVE",
         idempotency_key=command.idempotency_key,
+        user_id=user_id,
     )
     event = ActivityEventRow(
         id=str(uuid4()),
@@ -97,6 +102,7 @@ def check_in_food(session: Session, command: CheckInCommand) -> CheckInResult:
             "location": command.location,
         },
         idempotency_key=command.idempotency_key,
+        user_id=user_id,
     )
     session.add_all([lot, event])
     session.commit()
@@ -123,11 +129,17 @@ def urgency_for(expires_on: date | None, today: date) -> str:
     return "THREE_TO_FIVE_DAYS"
 
 
-def get_storage_overview(session: Session, today: date) -> dict[str, list[dict[str, object]]]:
+def get_storage_overview(
+    session: Session, user_id: str, today: date
+) -> dict[str, list[dict[str, object]]]:
     rows = session.execute(
         select(InventoryLotRow, FoodDefinitionRow)
         .join(FoodDefinitionRow, FoodDefinitionRow.id == InventoryLotRow.food_definition_id)
-        .where(InventoryLotRow.status == "ACTIVE", InventoryLotRow.quantity > 0)
+        .where(
+            InventoryLotRow.user_id == user_id,
+            InventoryLotRow.status == "ACTIVE",
+            InventoryLotRow.quantity > 0,
+        )
         .order_by(FoodDefinitionRow.id, InventoryLotRow.storage_location)
     ).all()
 
@@ -163,11 +175,12 @@ def get_storage_overview(session: Session, today: date) -> dict[str, list[dict[s
 
 
 def _active_lots(
-    session: Session, food_key: str, location: str | None
+    session: Session, user_id: str, food_key: str, location: str | None
 ) -> list[InventoryLotRow]:
     statement = (
         select(InventoryLotRow)
         .where(
+            InventoryLotRow.user_id == user_id,
             InventoryLotRow.food_definition_id == food_key,
             InventoryLotRow.status == InventoryLotStatus.ACTIVE.value,
         )
@@ -182,9 +195,9 @@ def _active_lots(
     return list(session.scalars(statement).all())
 
 
-def _remaining_quantity(session: Session, food_key: str, location: str) -> Decimal:
+def _remaining_quantity(session: Session, user_id: str, food_key: str, location: str) -> Decimal:
     return sum(
-        (lot.quantity for lot in _active_lots(session, food_key, location)),
+        (lot.quantity for lot in _active_lots(session, user_id, food_key, location)),
         Decimal(0),
     )
 
@@ -202,17 +215,25 @@ def _allocation_lots(lots: list[InventoryLotRow]) -> list[AllocationLot]:
     ]
 
 
-def _find_replay_event(session: Session, idempotency_key: str) -> ActivityEventRow | None:
+def _find_replay_event(
+    session: Session, user_id: str, idempotency_key: str
+) -> ActivityEventRow | None:
     return session.scalar(
-        select(ActivityEventRow).where(ActivityEventRow.idempotency_key == idempotency_key)
+        select(ActivityEventRow).where(
+            ActivityEventRow.user_id == user_id,
+            ActivityEventRow.idempotency_key == idempotency_key,
+        )
     )
 
 
-def list_lots(session: Session, food_key: str, location: str) -> dict[str, list[dict[str, object]]]:
+def list_lots(
+    session: Session, user_id: str, food_key: str, location: str
+) -> dict[str, list[dict[str, object]]]:
     rows = session.execute(
         select(InventoryLotRow, FoodDefinitionRow.base_unit)
         .join(FoodDefinitionRow, FoodDefinitionRow.id == InventoryLotRow.food_definition_id)
         .where(
+            InventoryLotRow.user_id == user_id,
             InventoryLotRow.food_definition_id == food_key,
             InventoryLotRow.storage_location == location,
             InventoryLotRow.status != InventoryLotStatus.DISCARDED.value,
@@ -259,12 +280,17 @@ class EditLotResult:
     replayed: bool
 
 
-def edit_lot(session: Session, command: EditLotCommand) -> EditLotResult:
-    replay = _find_replay_event(session, command.idempotency_key)
+def edit_lot(session: Session, user_id: str, command: EditLotCommand) -> EditLotResult:
+    replay = _find_replay_event(session, user_id, command.idempotency_key)
     if replay is not None:
         return EditLotResult(lot_id=replay.display_snapshot["lotId"], replayed=True)
 
-    lot = session.get(InventoryLotRow, command.lot_id)
+    lot = session.scalar(
+        select(InventoryLotRow).where(
+            InventoryLotRow.id == command.lot_id,
+            InventoryLotRow.user_id == user_id,
+        )
+    )
     if lot is None:
         raise LotNotFoundError(f"unknown lot: {command.lot_id}")
     food = session.get(FoodDefinitionRow, lot.food_definition_id)
@@ -277,7 +303,8 @@ def edit_lot(session: Session, command: EditLotCommand) -> EditLotResult:
         old_unit = food.base_unit
         related_lots = session.scalars(
             select(InventoryLotRow).where(
-                InventoryLotRow.food_definition_id == lot.food_definition_id
+                InventoryLotRow.user_id == user_id,
+                InventoryLotRow.food_definition_id == lot.food_definition_id,
             )
         ).all()
         for related_lot in related_lots:
@@ -325,6 +352,7 @@ def edit_lot(session: Session, command: EditLotCommand) -> EditLotResult:
             "quantityDelta": decimal_string(quantity_delta),
         },
         idempotency_key=command.idempotency_key,
+        user_id=user_id,
     )
     session.add(event)
     session.commit()
@@ -353,11 +381,11 @@ class ReduceResult:
     replayed: bool
 
 
-def reduce_inventory(session: Session, command: ReduceCommand) -> ReduceResult:
-    replay = _find_replay_event(session, command.idempotency_key)
+def reduce_inventory(session: Session, user_id: str, command: ReduceCommand) -> ReduceResult:
+    replay = _find_replay_event(session, user_id, command.idempotency_key)
     if replay is not None:
         return ReduceResult(
-            new_quantity=_remaining_quantity(session, command.food_key, command.location),
+            new_quantity=_remaining_quantity(session, user_id, command.food_key, command.location),
             allocations=(),
             replayed=True,
         )
@@ -370,7 +398,7 @@ def reduce_inventory(session: Session, command: ReduceCommand) -> ReduceResult:
         amount = converted.value
         unit = food.base_unit
 
-    lots = _active_lots(session, command.food_key, command.location)
+    lots = _active_lots(session, user_id, command.food_key, command.location)
     plan = allocate({command.food_key: amount}, _allocation_lots(lots))
     if plan.shortfalls:
         raise ValueError("insufficient quantity")
@@ -392,6 +420,7 @@ def reduce_inventory(session: Session, command: ReduceCommand) -> ReduceResult:
                 quantity_delta=-line.delta,
                 reversal_of=None,
                 idempotency_key=f"{command.idempotency_key}:{lot.id}",
+                user_id=user_id,
             )
         )
         allocations.append(ReduceAllocation(lot_id=lot.id, deducted=line.delta))
@@ -408,11 +437,12 @@ def reduce_inventory(session: Session, command: ReduceCommand) -> ReduceResult:
             "location": command.location,
         },
         idempotency_key=command.idempotency_key,
+        user_id=user_id,
     )
     session.add_all([*transactions, event])
     session.commit()
     return ReduceResult(
-        new_quantity=_remaining_quantity(session, command.food_key, command.location),
+        new_quantity=_remaining_quantity(session, user_id, command.food_key, command.location),
         allocations=tuple(allocations),
         replayed=False,
     )
@@ -424,12 +454,17 @@ class DiscardResult:
     replayed: bool
 
 
-def discard_lot(session: Session, lot_id: str, idempotency_key: str) -> DiscardResult:
-    replay = _find_replay_event(session, idempotency_key)
+def discard_lot(session: Session, user_id: str, lot_id: str, idempotency_key: str) -> DiscardResult:
+    replay = _find_replay_event(session, user_id, idempotency_key)
     if replay is not None:
         return DiscardResult(lot_id=replay.display_snapshot["lotId"], replayed=True)
 
-    lot = session.get(InventoryLotRow, lot_id)
+    lot = session.scalar(
+        select(InventoryLotRow).where(
+            InventoryLotRow.id == lot_id,
+            InventoryLotRow.user_id == user_id,
+        )
+    )
     if lot is None:
         raise LotNotFoundError(f"unknown lot: {lot_id}")
     if lot.status != InventoryLotStatus.ACTIVE.value:
@@ -446,6 +481,7 @@ def discard_lot(session: Session, lot_id: str, idempotency_key: str) -> DiscardR
         quantity_delta=-discarded_quantity,
         reversal_of=None,
         idempotency_key=f"{idempotency_key}:{lot.id}",
+        user_id=user_id,
     )
     event = ActivityEventRow(
         id=str(uuid4()),
@@ -460,6 +496,7 @@ def discard_lot(session: Session, lot_id: str, idempotency_key: str) -> DiscardR
             "location": lot.storage_location,
         },
         idempotency_key=idempotency_key,
+        user_id=user_id,
     )
     session.add_all([transaction, event])
     session.commit()
@@ -474,7 +511,7 @@ class PreviewItem:
 
 
 def cooking_preview(
-    session: Session, items: list[PreviewItem], location: str | None
+    session: Session, user_id: str, items: list[PreviewItem], location: str | None
 ) -> dict[str, object]:
     lines: list[dict[str, object]] = []
     feasible = True
@@ -485,7 +522,7 @@ def cooking_preview(
             requested_amount = convert(
                 Quantity(item.amount, item.unit), food.base_unit
             ).value
-        lots = _active_lots(session, item.food_key, location)
+        lots = _active_lots(session, user_id, item.food_key, location)
         plan = allocate({item.food_key: requested_amount}, _allocation_lots(lots))
         shortfall = plan.shortfalls.get(item.food_key, Decimal(0))
         if shortfall > 0:
@@ -537,8 +574,10 @@ class CookingCommitResult:
     replayed: bool
 
 
-def cooking_commit(session: Session, command: CookingCommitCommand) -> CookingCommitResult:
-    replay = _find_replay_event(session, command.idempotency_key)
+def cooking_commit(
+    session: Session, user_id: str, command: CookingCommitCommand
+) -> CookingCommitResult:
+    replay = _find_replay_event(session, user_id, command.idempotency_key)
     if replay is not None:
         return CookingCommitResult(
             session_id=replay.display_snapshot["sessionId"], replayed=True
@@ -551,7 +590,12 @@ def cooking_commit(session: Session, command: CookingCommitCommand) -> CookingCo
     units_by_food: dict[str, str] = {}
     for line in command.lines:
         for allocation in line.allocations:
-            lot = session.get(InventoryLotRow, allocation.lot_id)
+            lot = session.scalar(
+                select(InventoryLotRow).where(
+                    InventoryLotRow.id == allocation.lot_id,
+                    InventoryLotRow.user_id == user_id,
+                )
+            )
             if lot is None or lot.food_definition_id != line.food_key:
                 raise ValueError(f"unknown lot in commit: {allocation.lot_id}")
             if (
@@ -582,6 +626,7 @@ def cooking_commit(session: Session, command: CookingCommitCommand) -> CookingCo
                 quantity_delta=-quantity,
                 reversal_of=None,
                 idempotency_key=f"{command.idempotency_key}:{lot.id}",
+                user_id=user_id,
             )
         )
 
@@ -605,6 +650,7 @@ def cooking_commit(session: Session, command: CookingCommitCommand) -> CookingCo
             "names": first_food.names if first_food is not None else {},
         },
         idempotency_key=command.idempotency_key,
+        user_id=user_id,
     )
     session.add_all([*transactions, event])
     session.commit()
