@@ -1,14 +1,3 @@
-export interface RescueSource {
-  id: string
-  url: string
-  title: string
-  publisher: string
-  domain: string
-  retrievedAt: string
-  baseYield: number | null
-  usedFoodKeys: string[]
-}
-
 export interface PlanIngredient {
   originalText: string
   amountKind: string
@@ -19,7 +8,7 @@ export interface PlanIngredient {
   needsReview: boolean
 }
 
-export interface AiPlan {
+export interface Recipe {
   title: string
   description: string | null
   baseYield: number
@@ -32,9 +21,8 @@ export interface AiPlan {
 
 export interface SearchResponse {
   sessionId: string
-  sources: RescueSource[]
-  aiPlan: AiPlan | null
-  aiPlanError: string | null
+  recipes: Recipe[]
+  recipeErrors: string[]
 }
 
 export interface SelectedFoodInput {
@@ -50,11 +38,12 @@ export async function searchRecipes(
   selectedFoods: SelectedFoodInput[],
   servings: number,
   locale: string,
+  cuisine: string,
 ): Promise<SearchResponse> {
   const response = await fetch('/api/rescue/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ selectedFoods, servings, locale }),
+    body: JSON.stringify({ selectedFoods, servings, locale, cuisine }),
   })
   if (!response.ok) {
     throw new Error(`Recipe search failed with status ${response.status}`)
@@ -68,9 +57,9 @@ export interface RescueSession {
   selectedFoods: SelectedFoodInput[]
   servings: number
   locale: string
-  sources: RescueSource[]
-  aiPlan: AiPlan | null
-  aiPlanError: string | null
+  cuisine?: string
+  recipes: Recipe[]
+  recipeErrors: string[]
   createdAt: string
   searchedAt: string | null
 }
@@ -79,4 +68,11 @@ export async function fetchRescueSession(sessionId: string): Promise<RescueSessi
   const response = await fetch(`/api/rescue/${encodeURIComponent(sessionId)}`)
   if (!response.ok) throw new Error(`Rescue session fetch failed with status ${response.status}`)
   return response.json() as Promise<RescueSession>
+}
+
+export async function fetchMealIdeaHistory(limit: number = 3): Promise<RescueSession[]> {
+  const response = await fetch(`/api/rescue/sessions?limit=${limit}`)
+  if (!response.ok) throw new Error(`Meal idea history fetch failed with status ${response.status}`)
+  const body = await response.json() as { sessions: RescueSession[] }
+  return body.sessions
 }

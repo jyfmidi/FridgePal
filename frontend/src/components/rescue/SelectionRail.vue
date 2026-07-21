@@ -19,6 +19,7 @@ const slots = computed(() => Array.from({ length: 7 }, (_, index) => props.foods
         v-if="food && editable"
         type="button"
         class="selection-slot__food"
+        :class="`selection-slot__food--${food.urgency}`"
         :aria-label="t('rescue.removeFood', { name: t(food.nameKey), position: index + 1 })"
         @click="emit('remove', food.id)"
       >
@@ -28,6 +29,7 @@ const slots = computed(() => Array.from({ length: 7 }, (_, index) => props.foods
       <div
         v-else-if="food"
         class="selection-slot__food selection-slot__food--static"
+        :class="`selection-slot__food--${food.urgency}`"
         role="img"
         :aria-label="t('rescue.selectedPosition', { name: t(food.nameKey), position: index + 1 })"
       >
@@ -96,6 +98,26 @@ const slots = computed(() => Array.from({ length: 7 }, (_, index) => props.foods
     transform var(--duration-base) var(--ease-pop);
 }
 
+.selection-slot__food--past {
+  background: var(--color-urgency-past);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-past-edge);
+}
+
+.selection-slot__food--today {
+  background: var(--color-urgency-today);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-today-edge);
+}
+
+.selection-slot__food--soon {
+  background: var(--color-urgency-soon);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-soon-edge);
+}
+
+.selection-slot__food--later {
+  background: var(--color-urgency-later);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-later-edge);
+}
+
 .selection-slot__food:hover {
   box-shadow: inset 0 0 0 2px var(--color-primary), var(--shadow-sm);
   transform: translateY(-1px);
@@ -112,8 +134,10 @@ const slots = computed(() => Array.from({ length: 7 }, (_, index) => props.foods
   font-size: 0.625rem;
   line-height: 1.1;
   text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .selection-slot__empty {

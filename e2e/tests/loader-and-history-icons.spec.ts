@@ -5,6 +5,57 @@ const emptyStorage = {
   inventory: [],
 }
 
+const rescueStorage = {
+  useSoon: [],
+  inventory: [
+    ['chicken-breast', 'Chicken breast'],
+    ['spinach', 'Spinach'],
+    ['mushrooms', 'Mushrooms'],
+    ['broccoli', 'Broccoli'],
+    ['tofu', 'Tofu'],
+  ].map(([foodKey, name]) => ({
+    foodKey,
+    names: { en: name, 'zh-CN': name },
+    visualKey: foodKey,
+    quantity: '100',
+    unit: 'g',
+    location: 'FRIDGE',
+    urgency: 'LATER',
+  })),
+}
+
+const rescueSearchResult = {
+  sessionId: 'session-new',
+  recipes: [{
+    title: 'Quick rescue bowl',
+    description: null,
+    baseYield: 2,
+    ingredients: [],
+    steps: ['Combine and cook.'],
+    sourceUrls: [],
+    analysisStatus: 'READY',
+    warnings: [],
+  }],
+  recipeErrors: [],
+}
+
+async function initializeRescueSelection(page: Page) {
+  const selectedIds = rescueStorage.inventory.map((food) => `${food.foodKey}-FRIDGE`)
+  await page.addInitScript(({ ids, foods }) => {
+    localStorage.setItem('fridgital.rescue.selection.v1', JSON.stringify(ids))
+    localStorage.setItem('fridgital.inventory.v1', JSON.stringify(foods.map((food) => ({
+      id: `${food.foodKey}-FRIDGE`,
+      foodKey: food.foodKey,
+      nameKey: `foods.${food.foodKey === 'chicken-breast' ? 'chickenBreast' : food.foodKey}`,
+      names: food.names,
+      quantity: Number(food.quantity),
+      unit: food.unit,
+      location: 'fridge',
+      urgency: 'neutral',
+    }))))
+  }, { ids: selectedIds, foods: rescueStorage.inventory })
+}
+
 function controlledStorageResponse(page: Page) {
   let releaseResponse!: () => void
   let requestCount = 0
@@ -42,6 +93,7 @@ test('initial hydration shows the looping Fridge Pal character', async ({ page }
     const labelBounds = elements.label.getBoundingClientRect()
     return labelBounds.top - markBounds.bottom
   }, { mark: await mark.elementHandle(), label: await label.elementHandle() })
+  expect(markToLabelGap).toBeGreaterThanOrEqual(0)
   expect(markToLabelGap).toBeLessThanOrEqual(32)
 
   storage.release()
@@ -99,13 +151,34 @@ test('History uses a clear stock-in icon and curated food identity', async ({ pa
           createdAt: '2026-07-21T08:05:00Z',
           reversible: false,
         },
+        ...[
+          ['EDIT', 'edit'],
+          ['MOVE', 'move'],
+          ['MANUAL_CONSUMPTION', 'consume'],
+          ['DISCARD', 'trash'],
+          ['REVERSAL', 'undo'],
+        ].map(([eventType, suffix], index) => ({
+          id: `event-${suffix}`,
+          eventType,
+          foodKey: 'spinach',
+          quantityDelta: eventType === 'MANUAL_CONSUMPTION' || eventType === 'DISCARD' ? '-10' : '0',
+          displaySnapshot: {
+            names: { en: 'Spinach', 'zh-CN': '菠菜' },
+            quantity: '10',
+            unit: 'g',
+            location: 'FRIDGE',
+            originalEventType: eventType === 'REVERSAL' ? 'CHECK_IN' : undefined,
+          },
+          createdAt: `2026-07-21T08:${10 + index}:00Z`,
+          reversible: false,
+        })),
       ],
     },
   }))
 
   await page.goto('/history')
 
-  const entry = page.getByRole('listitem').filter({ hasText: 'Spinach' })
+  const entry = page.locator('[data-event-icon="stock-in"]').locator('..')
   await expect(entry).toBeVisible()
   await expect(entry.getByText('Added', { exact: true })).toBeVisible()
   await expect(entry.locator('[data-event-icon="stock-in"]')).toBeVisible()
@@ -115,6 +188,54 @@ test('History uses a clear stock-in icon and curated food identity', async ({ pa
   const cookingEntry = page.locator('[data-event-icon="cooking-pot"]').locator('..')
   await expect(cookingEntry).toContainText('Quick supper')
   await expect(cookingEntry.locator('.history-event__meta')).toHaveCount(0)
+  for (const icon of ['stock-in', 'edit', 'move', 'consume', 'cooking-pot', 'trash', 'undo']) {
+    await expect(page.locator(`[data-event-icon="${icon}"]`)).toHaveCount(1)
+  }
+})
+
+test('History prefers Simplified Chinese snapshot names for foods and cooking items', async ({ page }) => {
+  await page.route('**/api/storage', (route) => route.fulfill({ json: emptyStorage }))
+  await page.route('**/api/history?limit=*', (route) => route.fulfill({
+    json: {
+      events: [
+        {
+          id: 'event-check-in-spinach-zh',
+          eventType: 'CHECK_IN',
+          foodKey: 'spinach',
+          quantityDelta: '200',
+          displaySnapshot: {
+            names: { en: 'Spinach', 'zh-CN': '菠菜' },
+            quantity: '200',
+            unit: 'g',
+            location: 'FRIDGE',
+          },
+          createdAt: '2026-07-21T08:00:00Z',
+          reversible: false,
+        },
+        {
+          id: 'event-cooking-tomatoes-zh',
+          eventType: 'COOKING',
+          foodKey: 'tomatoes',
+          quantityDelta: '-100',
+          displaySnapshot: {
+            sessionName: '晚餐',
+            items: [{ foodKey: 'tomatoes', names: { en: 'Tomatoes', 'zh-CN': '番茄' } }],
+          },
+          createdAt: '2026-07-21T08:05:00Z',
+          reversible: false,
+        },
+      ],
+    },
+  }))
+
+  await page.goto('/')
+  await page.locator('.locale-action').evaluate((button: HTMLButtonElement) => button.click())
+  await page.getByRole('link', { name: '记录' }).click()
+
+  const addedEntry = page.getByRole('listitem').filter({ hasText: '菠菜' })
+  await expect(addedEntry).toBeVisible()
+  await expect(addedEntry).not.toContainText('Spinach')
+  await expect(page.getByRole('img', { name: '番茄' })).toBeVisible()
 })
 
 test('Recipe Editor names an icon-only seasoning removal action', async ({ page }) => {
@@ -143,4 +264,70 @@ test('Recipe Editor names an icon-only seasoning removal action', async ({ page 
   await page.goto('/recipes/editor?savedId=saved-seasoning')
 
   await expect(page.getByRole('button', { name: 'Remove Salt' })).toBeVisible()
+})
+
+test('new meal idea indicator belongs only to the History destination', async ({ page }) => {
+  await initializeRescueSelection(page)
+  await page.route('**/api/storage', (route) => route.fulfill({ json: rescueStorage }))
+  await page.route('**/api/rescue/search', (route) => route.fulfill({ json: rescueSearchResult }))
+
+  await page.goto('/rescue')
+  await page.getByRole('button', { name: 'Find meal ideas' }).click()
+
+  const indicators = page.locator('.app-nav__red-dot')
+  await expect(indicators).toHaveCount(1)
+  const historyLink = page.getByRole('link', { name: 'History New meal idea available' })
+  await expect(historyLink).toHaveAttribute('href', '/history')
+  await expect(historyLink.locator('.app-nav__red-dot')).toHaveCount(1)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(indicators.first()).toHaveCSS('animation-name', 'none')
+})
+
+test('quick Rescue search does not flash the compact loader', async ({ page }) => {
+  await initializeRescueSelection(page)
+  await page.route('**/api/storage', (route) => route.fulfill({ json: rescueStorage }))
+  let releaseSearch!: () => void
+  const searchReleased = new Promise<void>((resolve) => {
+    releaseSearch = resolve
+  })
+  await page.route('**/api/rescue/search', async (route) => {
+    await searchReleased
+    await route.fulfill({ json: rescueSearchResult })
+  })
+
+  await page.goto('/rescue')
+  const searchRequest = page.waitForRequest('**/api/rescue/search')
+  await page.getByRole('button', { name: 'Find meal ideas' }).click()
+  await searchRequest
+  await page.waitForTimeout(75)
+
+  await expect(page.getByRole('status').filter({ hasText: 'Searching for recipe ideas…' })).toBeHidden()
+  releaseSearch()
+  await expect(page).toHaveURL('/rescue/results')
+})
+
+test('slow Rescue search reveals then hides the reduced-motion compact loader', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await initializeRescueSelection(page)
+  await page.route('**/api/storage', (route) => route.fulfill({ json: rescueStorage }))
+  let releaseSearch!: () => void
+  const searchReleased = new Promise<void>((resolve) => {
+    releaseSearch = resolve
+  })
+  await page.route('**/api/rescue/search', async (route) => {
+    await searchReleased
+    await route.fulfill({ json: rescueSearchResult })
+  })
+
+  await page.goto('/rescue')
+  await page.getByRole('button', { name: 'Find meal ideas' }).click()
+
+  const loader = page.getByRole('status').filter({ hasText: 'Searching for recipe ideas…' })
+  await expect(loader).toBeVisible()
+  const character = loader.locator('[data-motion="wiggle-hop"]')
+  await expect(character).toBeVisible()
+  await expect(character).toHaveCSS('animation-name', 'none')
+
+  releaseSearch()
+  await expect(loader).toBeHidden()
 })

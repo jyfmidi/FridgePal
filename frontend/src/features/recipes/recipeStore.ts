@@ -6,6 +6,8 @@ export interface RecipeIngredientDraft {
   nameKey: string
   foodKey?: string
   baseAmount: string
+  baseQuantity: number | null
+  baseUnit: string
 }
 
 export interface RecipeDraftData {

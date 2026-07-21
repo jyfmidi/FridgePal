@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { cookingCommit, cookingPreview, StalePreviewError } from '../../api/inventory'
 import type { InventoryFood } from '../../features/storage/inventory'
 import { useInventoryStore } from '../../features/storage/inventoryStore'
+import { convertToSystemUnit, formatRecipeAmount } from '../../features/recipes/unitConversion'
 import FoodToken from '../food-token/FoodToken.vue'
 import StorageIngredientPicker from './StorageIngredientPicker.vue'
 
@@ -24,7 +25,6 @@ interface CookingLine {
   /** Editable numeric amount in storage units; blank means "not deducted". */
   amount: string
   unit: string
-  included: boolean
 }
 
 const props = defineProps<{
@@ -72,7 +72,7 @@ const lineFoodIds = computed(
     ),
 )
 
-const hasDeductions = computed(() => lines.value.some((line) => line.included && Number(line.amount) > 0))
+const hasDeductions = computed(() => lines.value.some((line) => Number(line.amount) > 0))
 
 function parseAmount(raw: string): { value: string; unit: string } {
   const match = raw.trim().match(/^([0-9]+(?:\.[0-9]+)?)\s*(.*)$/)
@@ -84,23 +84,26 @@ function buildLines() {
   const nextUntracked: { id: string; nameKey: string; amount: string }[] = []
   for (const ingredient of props.ingredients) {
     if (!ingredient.foodKey) {
-      nextUntracked.push({ id: ingredient.id, nameKey: ingredient.nameKey, amount: ingredient.amount })
+      const parsed = parseAmount(ingredient.amount)
+      nextUntracked.push({
+        id: ingredient.id,
+        nameKey: ingredient.nameKey,
+        amount: formatRecipeAmount(parsed.value || null, parsed.unit),
+      })
       continue
     }
     const stored = props.foods.find((food) => food.foodKey === ingredient.foodKey)
     const parsed = parseAmount(ingredient.amount)
-    const unit = stored?.unit ?? parsed.unit ?? 'g'
-    // Prefill only when the recipe unit matches the storage unit; otherwise the
-    // user types the storage-unit amount themselves; Fridge Pal never guesses a conversion.
-    const prefill = stored && parsed.value && (!parsed.unit || parsed.unit === stored.unit) ? parsed.value : ''
+    const converted = convertToSystemUnit(parsed.value || null, parsed.unit)
+    const unit = stored?.unit ?? converted.unit ?? 'g'
+    const prefill = stored && converted.value !== null && (!converted.unit || converted.unit === stored.unit) ? String(converted.value) : ''
     nextLines.push({
       key: ingredient.id,
       foodKey: ingredient.foodKey,
       nameKey: ingredient.nameKey,
-      recipeAmount: prefill ? '' : ingredient.amount,
+      recipeAmount: prefill ? '' : formatRecipeAmount(parsed.value || null, parsed.unit),
       amount: prefill,
       unit,
-      included: true,
     })
   }
   lines.value = nextLines
@@ -134,7 +137,7 @@ function availableFor(line: CookingLine): number {
 }
 
 function hasShortfall(line: CookingLine): boolean {
-  return line.included && Number(line.amount) > availableFor(line)
+  return Number(line.amount) > availableFor(line)
 }
 
 function hintFor(line: CookingLine): string {
@@ -144,10 +147,6 @@ function hintFor(line: CookingLine): string {
   return hasShortfall(line)
     ? t('cooking.shortfallHint', { available: quantity })
     : t('cooking.availableHint', { quantity })
-}
-
-function toggleLine(line: CookingLine) {
-  line.included = !line.included
 }
 
 function addExtraFoods(foodIds: string[]) {
@@ -161,7 +160,6 @@ function addExtraFoods(foodIds: string[]) {
       recipeAmount: '',
       amount: '',
       unit: food.unit,
-      included: true,
     })
   }
   pickerOpen.value = false
@@ -199,7 +197,7 @@ async function updateStorage() {
   errorMessage.value = ''
   staleNotice.value = false
   const items = lines.value
-    .filter((line) => line.included && Number(line.amount) > 0)
+    .filter((line) => Number(line.amount) > 0)
     .map((line) => ({ foodKey: line.foodKey, amount: String(Number(line.amount)), unit: line.unit }))
   if (items.length === 0) return
   submitting.value = true
@@ -253,7 +251,7 @@ async function updateStorage() {
               v-for="line in lines"
               :key="line.key"
               class="cooking-line"
-              :class="{ 'cooking-line--excluded': !line.included, 'cooking-line--shortfall': hasShortfall(line) || availableFor(line) === 0 }"
+              :class="{ 'cooking-line--shortfall': hasShortfall(line) || availableFor(line) === 0 }"
             >
               <FoodToken :food-key="line.foodKey" :name="t(line.nameKey)" :size="38" />
               <div class="cooking-line__main">
@@ -263,18 +261,9 @@ async function updateStorage() {
               </div>
               <label class="cooking-line__amount">
                 <span class="sr-only">{{ t('cooking.amountFor', { name: t(line.nameKey) }) }}</span>
-                <input v-model="line.amount" type="number" min="0" step="any" inputmode="decimal" :disabled="!line.included">
+                <input v-model="line.amount" type="number" min="0" step="any" inputmode="decimal">
                 <span>{{ line.unit }}</span>
               </label>
-              <button
-                type="button"
-                class="cooking-line__toggle"
-                :aria-pressed="line.included"
-                :aria-label="t('cooking.toggleLine', { name: t(line.nameKey) })"
-                @click="toggleLine(line)"
-              >
-                {{ t(line.included ? 'cooking.included' : 'cooking.excluded') }}
-              </button>
             </li>
           </ul>
 
@@ -405,7 +394,7 @@ async function updateStorage() {
 
 .cooking-line {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3);
@@ -416,10 +405,6 @@ async function updateStorage() {
 
 .cooking-line--shortfall {
   box-shadow: inset 0 0 0 1px var(--color-danger-edge);
-}
-
-.cooking-line--excluded {
-  opacity: 0.55;
 }
 
 .cooking-line__main {
@@ -444,8 +429,8 @@ async function updateStorage() {
 }
 
 .cooking-line__amount {
+  grid-column: 1 / -1;
   display: flex;
-  grid-column: 1 / -2;
   align-items: center;
   gap: var(--space-2);
 }
@@ -462,21 +447,6 @@ async function updateStorage() {
 .cooking-line__amount span {
   color: var(--color-muted);
   font-size: var(--font-size-sm);
-}
-
-.cooking-line__toggle {
-  min-height: var(--tap-target-min);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-full);
-  color: var(--color-on-primary);
-  background: var(--color-primary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-}
-
-.cooking-line__toggle[aria-pressed='false'] {
-  color: var(--color-primary);
-  background: var(--color-primary-softer);
 }
 
 .cooking-sheet__add {
@@ -518,7 +488,6 @@ async function updateStorage() {
 }
 
 .cooking-untracked li span {
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -570,7 +539,7 @@ async function updateStorage() {
   }
 
   .cooking-line {
-    grid-template-columns: auto minmax(0, 1fr) 160px auto;
+    grid-template-columns: auto minmax(0, 1fr) 160px;
   }
 
   .cooking-line__amount {

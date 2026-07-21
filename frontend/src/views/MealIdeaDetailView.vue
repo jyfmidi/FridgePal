@@ -1,28 +1,56 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
 import AppIcon from '../components/AppIcon.vue'
 import AppTaskHeader from '../components/AppTaskHeader.vue'
 import SelectionRail from '../components/rescue/SelectionRail.vue'
-import type { Recipe } from '../api/rescue'
-import { useRescueStore } from '../features/rescue/rescueStore'
+import type { Recipe, RescueSession } from '../api/rescue'
+import { fetchRescueSession } from '../api/rescue'
 import { useInventoryStore } from '../features/storage/inventoryStore'
+import { useRescueStore } from '../features/rescue/rescueStore'
 import { formatRecipeAmount, isSeasoning, formatSeasoningAmount } from '../features/recipes/unitConversion'
 
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
-const { inventory, hydrateFromServer } = useInventoryStore()
-const { selectedFoods, searchResult, searching, searchError } = useRescueStore(inventory)
+const inventoryStore = useInventoryStore()
+const { clearNewMealIdea } = useRescueStore(inventoryStore.inventory)
 
-const recipes = computed<Recipe[]>(() => searchResult.value?.recipes ?? [])
-const recipeErrors = computed<string[]>(() => searchResult.value?.recipeErrors ?? [])
-const searchSessionId = computed(() => searchResult.value?.sessionId ?? '')
+const session = ref<RescueSession | null>(null)
+const loading = ref(true)
+const error = ref<string | null>(null)
 
-onMounted(() => {
-  void hydrateFromServer()
+const recipes = computed<Recipe[]>(() => session.value?.recipes ?? [])
+const searchSessionId = computed(() => session.value?.sessionId ?? '')
+
+const selectedFoods = computed(() => {
+  if (!session.value) return []
+  return session.value.selectedFoods.map((f) => ({
+    id: `${f.foodKey}-${f.location}`,
+    foodKey: f.foodKey,
+    nameKey: `foods.${f.foodKey.replace(/-/g, '')}`,
+    names: { en: f.names.en ?? f.foodKey, 'zh-CN': f.names['zh-CN'] ?? '' },
+    quantity: parseFloat(f.quantity),
+    unit: f.unit,
+    location: f.location.toLowerCase() as 'fridge' | 'freezer' | 'pantry',
+    urgency: 'neutral' as const,
+  }))
 })
+
+async function loadSession() {
+  loading.value = true
+  error.value = null
+  try {
+    const sessionId = route.params.sessionId as string
+    session.value = await fetchRescueSession(sessionId)
+  } catch {
+    error.value = 'Could not load meal idea.'
+  } finally {
+    loading.value = false
+  }
+}
 
 function editRecipe(recipeIndex: number) {
   void router.push({
@@ -38,11 +66,16 @@ function mainIngredients(recipe: Recipe) {
 function seasoningIngredients(recipe: Recipe) {
   return recipe.ingredients.filter((ing) => isSeasoning(ing))
 }
+
+onMounted(() => {
+  void loadSession()
+  clearNewMealIdea()
+})
 </script>
 
 <template>
-  <div class="results-view">
-    <AppTaskHeader :title="t('recipeResults.title')" :back-label="t('common.back')" @back="router.push('/rescue')">
+  <div class="detail-view">
+    <AppTaskHeader :title="t('recipeResults.title')" :back-label="t('common.back')" @back="router.push('/history')">
       <template #action>
         <button class="header-action" type="button" @click="router.push('/rescue/choose')">
           <AppIcon name="swap" :size="17" />
@@ -51,33 +84,28 @@ function seasoningIngredients(recipe: Recipe) {
       </template>
     </AppTaskHeader>
 
-    <main class="results-content">
-      <section class="using-strip" aria-labelledby="using-title">
-        <div class="section-heading">
-          <h1 id="using-title">{{ t('recipeResults.using') }}</h1>
-          <span>{{ selectedFoods.length }}/7</span>
-        </div>
-        <SelectionRail :foods="selectedFoods" />
-      </section>
-
-      <div v-if="searching" class="results-loading">
+    <main class="detail-content">
+      <div v-if="loading" class="detail-loading">
         <p>{{ t('recipeResults.loading') }}</p>
       </div>
 
-      <div v-else-if="searchError" class="results-error">
-        <p>{{ t('recipeResults.searchError') }}</p>
-        <AppButton @click="router.push('/rescue')">{{ t('recipeResults.retry') }}</AppButton>
-      </div>
-
-      <div v-else-if="recipes.length === 0" class="results-empty">
-        <p>{{ t('recipeResults.noResults') }}</p>
-        <AppButton @click="router.push('/rescue/choose')">{{ t('recipeResults.changeFoods') }}</AppButton>
+      <div v-else-if="error" class="detail-error">
+        <p>{{ error }}</p>
       </div>
 
       <template v-else>
-        <section class="recipe-section stagger-in" aria-labelledby="recipes-title">
-          <div class="section-copy">
+        <section class="using-strip" aria-labelledby="using-title">
+          <div class="section-heading">
+            <h1 id="using-title">{{ t('recipeResults.using') }}</h1>
+            <span>{{ selectedFoods.length }}/7</span>
+          </div>
+          <SelectionRail :foods="selectedFoods" />
+        </section>
+
+        <section class="recipe-section" aria-labelledby="recipes-title">
+          <div class="recipe-section__heading">
             <h2 id="recipes-title">{{ t('recipeResults.title') }}</h2>
+            <span v-if="session?.cuisine" class="recipe-section__cuisine">{{ t(`rescue.cuisine.${session.cuisine}`) }}</span>
           </div>
 
           <article v-for="(recipe, idx) in recipes" :key="idx" class="recipe-card">
@@ -121,32 +149,27 @@ function seasoningIngredients(recipe: Recipe) {
             </div>
           </article>
         </section>
-
-        <div v-if="recipeErrors.length > 0" class="recipe-errors">
-          <p>{{ t('recipeResults.aiPlanError') }}</p>
-        </div>
       </template>
     </main>
   </div>
 </template>
 
 <style scoped>
-.results-view {
+.detail-view {
   width: min(100%, 880px);
   min-height: 100vh;
   padding: 0 var(--space-3) 100px;
   margin: 0 auto;
 }
 
-.results-content {
+.detail-content {
   display: grid;
   gap: var(--space-8);
   padding-top: var(--space-5);
 }
 
-.results-loading,
-.results-error,
-.results-empty {
+.detail-loading,
+.detail-error {
   display: grid;
   gap: var(--space-4);
   padding: var(--space-5);
@@ -155,14 +178,6 @@ function seasoningIngredients(recipe: Recipe) {
   box-shadow: var(--shadow-sm);
   text-align: center;
   place-items: center;
-}
-
-.results-error {
-  color: var(--color-danger, #b91c1c);
-}
-
-.results-empty {
-  color: var(--color-muted);
 }
 
 .header-action {
@@ -208,9 +223,19 @@ function seasoningIngredients(recipe: Recipe) {
   gap: var(--space-4);
 }
 
-.section-copy p {
-  margin-top: var(--space-1);
-  color: var(--color-muted);
+.recipe-section__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.recipe-section__cuisine {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-softer);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
 }
 
 .recipe-card {
@@ -337,14 +362,6 @@ function seasoningIngredients(recipe: Recipe) {
   justify-content: flex-end;
   padding-top: var(--space-2);
   border-top: 1px solid var(--color-border);
-}
-
-.recipe-errors {
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-primary-softer);
-  text-align: center;
-  color: var(--color-muted);
 }
 
 @media (min-width: 700px) {

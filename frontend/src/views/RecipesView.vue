@@ -2,7 +2,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import AppButton from '../components/AppButton.vue'
 import AppPageHeader from '../components/AppPageHeader.vue'
 import FoodToken from '../components/food-token/FoodToken.vue'
 import { useRecipeStore, type SavedRecipe } from '../features/recipes/recipeStore'
@@ -33,7 +32,7 @@ const visibleRecipes = computed(() => {
 })
 
 function openRecipe(recipe: SavedRecipe) {
-  void router.push({ path: '/recipes/editor', query: { origin: recipe.originId ?? recipe.id, savedId: recipe.id } })
+  void router.push({ path: '/recipes/view', query: { savedId: recipe.id } })
 }
 </script>
 
@@ -90,7 +89,6 @@ function openRecipe(recipe: SavedRecipe) {
               <small v-if="recipe.lastCookedPortion">{{ t('recipes.lastCooked', { count: recipe.lastCookedPortion }) }}</small>
             </span>
           </button>
-          <AppButton size="small" @click.stop="openRecipe(recipe)">{{ t('recipes.cookAgain') }}</AppButton>
         </article>
       </div>
 
@@ -155,11 +153,6 @@ function openRecipe(recipe: SavedRecipe) {
 }
 
 .saved-recipe-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
@@ -171,6 +164,7 @@ function openRecipe(recipe: SavedRecipe) {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-4);
+  padding: var(--space-4);
   text-align: left;
   cursor: pointer;
 }
@@ -226,12 +220,6 @@ function openRecipe(recipe: SavedRecipe) {
 }
 
 @media (max-width: 620px) {
-  .saved-recipe-card {
-    grid-template-columns: 1fr;
-    align-items: start;
-    gap: var(--space-3);
-  }
-
   .saved-recipe-card__open {
     grid-template-columns: auto minmax(0, 1fr);
   }

@@ -25,13 +25,23 @@ const pendingIds = ref<string[]>([])
 const searchInput = ref<HTMLInputElement | null>(null)
 let previousBodyOverflow = ''
 
+const urgencyRank: Record<string, number> = {
+  past: 5,
+  today: 4,
+  soon: 3,
+  later: 2,
+  neutral: 1,
+}
+
 const visibleFoods = computed(() => {
   const normalized = query.value.trim().toLocaleLowerCase(locale.value)
-  return props.foods.filter((food) => {
-    const inScope = scope.value === 'all' || food.location === scope.value
-    const matchesQuery = !normalized || t(food.nameKey).toLocaleLowerCase(locale.value).includes(normalized)
-    return inScope && matchesQuery
-  })
+  return props.foods
+    .filter((food) => {
+      const inScope = scope.value === 'all' || food.location === scope.value
+      const matchesQuery = !normalized || t(food.nameKey).toLocaleLowerCase(locale.value).includes(normalized)
+      return inScope && matchesQuery
+    })
+    .sort((a, b) => (urgencyRank[b.urgency] ?? 0) - (urgencyRank[a.urgency] ?? 0))
 })
 
 watch(
@@ -108,13 +118,17 @@ function onKeydown(event: KeyboardEvent) {
               :key="food.id"
               type="button"
               class="ingredient-picker__food"
-              :class="{ 'ingredient-picker__food--selected': isPending(food.id) }"
+              :class="[
+                `ingredient-picker__food--${food.urgency}`,
+                { 'ingredient-picker__food--selected': isPending(food.id) },
+              ]"
               :disabled="ingredientIds.has(food.id)"
               :aria-pressed="isPending(food.id)"
               :aria-label="ingredientIds.has(food.id) ? `${t(food.nameKey)}, ${t('recipeEditor.inRecipe')}` : t(food.nameKey)"
               @click="toggle(food.id)"
             >
               <span v-if="isPending(food.id)" class="ingredient-picker__check" aria-hidden="true">✓</span>
+              <span v-if="food.urgencyKey" class="ingredient-picker__urgency" aria-hidden="true">{{ t(food.urgencyKey) }}</span>
               <FoodToken :food-key="food.foodKey" :name="t(food.nameKey)" :size="52" />
               <span>{{ t(food.nameKey) }}</span>
               <small v-if="ingredientIds.has(food.id)">{{ t('recipeEditor.inRecipe') }}</small>
@@ -124,7 +138,6 @@ function onKeydown(event: KeyboardEvent) {
         </div>
 
         <footer class="ingredient-picker__footer">
-          <p>{{ t('recipeEditor.newIngredientsHint') }}</p>
           <button type="button" :disabled="pendingIds.length === 0" @click="confirm">
             {{ t('recipeEditor.addIngredients', { count: pendingIds.length }) }}
           </button>
@@ -219,17 +232,49 @@ function onKeydown(event: KeyboardEvent) {
   gap: var(--space-1);
   padding: var(--space-2);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
-  box-shadow: inset 0 0 0 1px var(--color-border);
+  background: var(--color-urgency-neutral);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-neutral-edge);
+}
+
+.ingredient-picker__food--past {
+  background: var(--color-urgency-past);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-past-edge);
+}
+
+.ingredient-picker__food--today {
+  background: var(--color-urgency-today);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-today-edge);
+}
+
+.ingredient-picker__food--soon {
+  background: var(--color-urgency-soon);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-soon-edge);
+}
+
+.ingredient-picker__food--later {
+  background: var(--color-urgency-later);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-later-edge);
 }
 
 .ingredient-picker__food--selected {
-  background: var(--color-primary-softer);
-  box-shadow: inset 0 0 0 2px var(--color-primary), var(--shadow-sm);
+  box-shadow: inset 0 0 0 3px var(--color-primary), var(--shadow-sm);
 }
 
 .ingredient-picker__food:disabled {
   opacity: 0.42;
+}
+
+.ingredient-picker__urgency {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-full);
+  background: rgb(255 255 255 / 0.6);
+  font-size: 9px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .ingredient-picker__food > span:not(.ingredient-picker__check) {

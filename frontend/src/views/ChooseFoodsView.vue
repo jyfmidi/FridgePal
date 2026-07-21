@@ -17,18 +17,28 @@ const router = useRouter()
 const scope = ref<Scope>('all')
 const query = ref('')
 const { inventory, hydrateFromServer } = useInventoryStore()
-const { selectedIds, selectedFoods, isAtCapacity, toggleFood, removeFood } = useRescueStore(inventory)
+const { selectedIds, selectedFoods, selectionCount, isAtCapacity, toggleFood, removeFood } = useRescueStore(inventory)
 
 onMounted(() => {
   void hydrateFromServer()
 })
 
+const urgencyRank: Record<string, number> = {
+  past: 5,
+  today: 4,
+  soon: 3,
+  later: 2,
+  neutral: 1,
+}
+
 const visibleFoods = computed(() => {
   const normalized = query.value.trim().toLocaleLowerCase(locale.value)
-  return inventory.value.filter((food) => {
-    const inScope = scope.value === 'all' || food.location === scope.value
-    return inScope && (!normalized || t(food.nameKey).toLocaleLowerCase(locale.value).includes(normalized))
-  })
+  return inventory.value
+    .filter((food) => {
+      const inScope = scope.value === 'all' || food.location === scope.value
+      return inScope && (!normalized || t(food.nameKey).toLocaleLowerCase(locale.value).includes(normalized))
+    })
+    .sort((a, b) => (urgencyRank[b.urgency] ?? 0) - (urgencyRank[a.urgency] ?? 0))
 })
 
 function isSelected(food: InventoryFood) {
@@ -46,7 +56,7 @@ function isSelected(food: InventoryFood) {
 
     <main class="picker-content">
       <SelectionRail :foods="selectedFoods" editable @remove="removeFood" />
-      <strong class="picker-count">{{ t('rescue.ofSeven', { count: selectedIds.length }) }}</strong>
+      <strong class="picker-count">{{ t('rescue.ofSeven', { count: selectionCount }) }}</strong>
 
       <div class="picker-toolbar">
         <LocationFilterBar v-model="scope" include-all :label="t('storage.locationFilter')" />
@@ -62,13 +72,17 @@ function isSelected(food: InventoryFood) {
           :key="food.id"
           type="button"
           class="food-picker-tile"
-          :class="{ 'food-picker-tile--selected': isSelected(food) }"
+          :class="[
+            `food-picker-tile--${food.urgency}`,
+            { 'food-picker-tile--selected': isSelected(food) },
+          ]"
           :disabled="isAtCapacity && !isSelected(food)"
           :aria-pressed="isSelected(food)"
           :aria-label="t(food.nameKey)"
           @click="toggleFood(food.id)"
         >
           <span v-if="isSelected(food)" class="food-picker-tile__check" aria-hidden="true">✓</span>
+          <span v-if="food.urgencyKey" class="food-picker-tile__urgency" aria-hidden="true">{{ t(food.urgencyKey) }}</span>
           <FoodToken :food-key="food.foodKey" :name="t(food.nameKey)" :size="54" />
           <span>{{ t(food.nameKey) }}</span>
         </button>
@@ -133,21 +147,53 @@ function isSelected(food: InventoryFood) {
   gap: var(--space-1);
   padding: var(--space-2);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
-  box-shadow: inset 0 0 0 1px var(--color-border);
+  background: var(--color-urgency-neutral);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-neutral-edge);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   text-align: center;
   transition: transform var(--duration-base) var(--ease-pop), box-shadow var(--duration-base) var(--ease-standard);
 }
 
+.food-picker-tile--past {
+  background: var(--color-urgency-past);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-past-edge);
+}
+
+.food-picker-tile--today {
+  background: var(--color-urgency-today);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-today-edge);
+}
+
+.food-picker-tile--soon {
+  background: var(--color-urgency-soon);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-soon-edge);
+}
+
+.food-picker-tile--later {
+  background: var(--color-urgency-later);
+  box-shadow: inset 0 0 0 1px var(--color-urgency-later-edge);
+}
+
 .food-picker-tile--selected {
-  background: var(--color-primary-softer);
-  box-shadow: inset 0 0 0 2px var(--color-primary), var(--shadow-token-active);
+  box-shadow: inset 0 0 0 3px var(--color-primary), var(--shadow-token-active);
 }
 
 .food-picker-tile:disabled {
   opacity: 0.45;
+}
+
+.food-picker-tile__urgency {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-full);
+  background: rgb(255 255 255 / 0.6);
+  font-size: 9px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .food-picker-tile__check {

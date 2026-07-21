@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { useInventoryStore } from '../features/storage/inventoryStore'
+import { useRescueStore } from '../features/rescue/rescueStore'
 
 const { t } = useI18n()
+const inventoryStore = useInventoryStore()
+const { newMealIdea } = useRescueStore(inventoryStore.inventory)
 
 const destinations = [
   { to: '/', label: 'navigation.storage', icon: 'storage' },
@@ -50,8 +54,10 @@ const destinations = [
             <path d="M12 7v5l3.5 2" />
           </template>
         </svg>
+        <span v-if="newMealIdea && item.to === '/history'" class="app-nav__red-dot" />
       </span>
       <span>{{ t(item.label) }}</span>
+      <span v-if="newMealIdea && item.to === '/history'" class="sr-only">{{ t('mealIdeas.newAvailable') }}</span>
     </RouterLink>
   </nav>
 </template>
@@ -124,6 +130,29 @@ const destinations = [
 
 .app-nav__item.router-link-active .app-nav__icon svg {
   stroke-width: 2.1;
+}
+
+.app-nav__red-dot {
+  position: absolute;
+  top: 6px;
+  right: 50%;
+  transform: translateX(14px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-danger, #ef4444);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-nav__red-dot {
+    animation: none;
+  }
 }
 
 @media (min-width: 880px) {

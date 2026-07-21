@@ -6,11 +6,11 @@ import AppButton from '../components/AppButton.vue'
 import AppIcon from '../components/AppIcon.vue'
 import AppTaskHeader from '../components/AppTaskHeader.vue'
 import FoodToken from '../components/food-token/FoodToken.vue'
-import CookingSheet from '../components/recipes/CookingSheet.vue'
 import StorageIngredientPicker from '../components/recipes/StorageIngredientPicker.vue'
 import { fetchRescueSession } from '../api/rescue'
 import { fetchRecipe as apiFetchRecipe } from '../api/recipes'
 import { normalizeRecipeDraftData, useRecipeStore, type RecipeDraftData, type RecipeIngredientDraft } from '../features/recipes/recipeStore'
+import { convertToSystemUnit, isSeasoning } from '../features/recipes/unitConversion'
 import { useRescueStore } from '../features/rescue/rescueStore'
 import { useInventoryStore } from '../features/storage/inventoryStore'
 
@@ -18,7 +18,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { inventory, hydrateFromServer } = useInventoryStore()
-const { selectedFoods } = useRescueStore(inventory)
+useRescueStore(inventory)
 const { saveRecipe } = useRecipeStore()
 const origin = computed(() => String(route.query.origin ?? 'ai-plan'))
 const routeSavedId = computed(() => (route.query.savedId ? String(route.query.savedId) : undefined))
@@ -46,7 +46,6 @@ const addStorageButton = ref<HTMLButtonElement | null>(null)
 const draftSaved = ref(false)
 const recipeSaved = ref(Boolean(routeSavedId.value))
 const savedRecipeId = ref(routeSavedId.value)
-const cookOpen = ref(false)
 const notice = ref('')
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
 let draftTimer: ReturnType<typeof setTimeout> | undefined
@@ -60,13 +59,13 @@ function showNotice(message: string) {
 const effectiveYield = computed(() => Math.round(baseYield.value * multiplier.value * 10) / 10)
 const ingredientIds = computed(() => new Set(ingredients.value.map((ingredient) => ingredient.id)))
 const inventoryById = computed(() => new Map(inventory.value.map((food) => [food.id, food])))
-const cookIngredients = computed(() =>
-  ingredients.value.map((ingredient) => ({
-    id: ingredient.id,
-    nameKey: ingredient.nameKey,
-    foodKey: ingredient.foodKey ?? inventoryById.value.get(ingredient.id)?.foodKey,
-    amount: scaledAmount(ingredient.baseAmount),
-  })),
+
+const mainIngredients = computed(() =>
+  ingredients.value.filter((ingredient) => !isSeasoning(ingredient)),
+)
+
+const seasoningIngredients = computed(() =>
+  ingredients.value.filter((ingredient) => isSeasoning(ingredient)),
 )
 
 async function loadFromApi() {
@@ -79,41 +78,43 @@ async function loadFromApi() {
       description.value = recipe.description || ''
       baseYield.value = recipe.baseYield
       multiplier.value = recipe.multiplier
-      ingredients.value = recipe.ingredients
+      ingredients.value = recipe.ingredients.map((ing) => {
+        const match = ing.baseAmount.match(/^([0-9]+(?:\.[0-9]+)?)\s*(.*)$/)
+        return {
+          id: ing.id,
+          nameKey: ing.nameKey,
+          foodKey: ing.foodKey,
+          baseAmount: ing.baseAmount,
+          baseQuantity: match ? parseFloat(match[1]) : null,
+          baseUnit: match ? match[2] || 'g' : 'g',
+        }
+      })
       instructions.value = recipe.instructions
       savedRecipeId.value = recipe.id
       recipeSaved.value = true
     } else if (route.query.sessionId) {
       const session = await fetchRescueSession(String(route.query.sessionId))
-      if (origin.value === 'ai-plan' && session.aiPlan) {
-        const plan = session.aiPlan
-        name.value = plan.title
-        description.value = plan.description || ''
-        baseYield.value = plan.baseYield
-        multiplier.value = 0.5
-        ingredients.value = plan.ingredients.map((ing, i) => ({
-          id: `ai-ing-${i}`,
-          nameKey: ing.originalText,
-          foodKey: ing.mappingSuggestion || undefined,
-          baseAmount: ing.amount ? `${ing.amount}${ing.unit ? ' ' + ing.unit : ''}` : 'As needed',
-        }))
-        instructions.value = [...plan.steps]
-      } else if (origin.value.startsWith('source-')) {
-        const source = session.sources.find((s) => s.id === origin.value)
-        if (source) {
-          name.value = source.title
-          description.value = ''
-          baseYield.value = source.baseYield || 2
+      if (origin.value.startsWith('recipe-')) {
+        const recipeIndex = parseInt(origin.value.replace('recipe-', ''), 10)
+        const recipe = session.recipes?.[recipeIndex]
+        if (recipe) {
+          name.value = recipe.title
+          description.value = recipe.description || ''
+          baseYield.value = recipe.baseYield
           multiplier.value = 0.5
-          ingredients.value = selectedFoods.value
-            .filter((f) => source.usedFoodKeys.includes(f.foodKey))
-            .map((f) => ({
-              id: f.id,
-              nameKey: f.nameKey,
-              foodKey: f.foodKey,
-              baseAmount: f.quantity + ' ' + f.unit,
-            }))
-          instructions.value = ['Prep the ingredients.', 'Cook according to the original recipe.']
+          ingredients.value = recipe.ingredients.map((ing: { mappingSuggestion: string | null; originalText: string; amount: string | null; unit: string | null }, i: number) => {
+            const matched = matchInventoryFood(ing.mappingSuggestion, ing.originalText)
+            const converted = convertToSystemUnit(ing.amount, ing.unit)
+            return {
+              id: `ai-ing-${i}`,
+              nameKey: matched?.nameKey ?? ing.originalText,
+              foodKey: matched?.foodKey ?? ing.mappingSuggestion ?? undefined,
+              baseAmount: converted.value !== null ? `${converted.value} ${converted.unit}` : 'As needed',
+              baseQuantity: converted.value,
+              baseUnit: matched?.unit ?? converted.unit ?? 'g',
+            }
+          })
+          instructions.value = [...recipe.steps]
         }
       }
     }
@@ -141,18 +142,60 @@ onMounted(async () => {
   await loadFromApi()
 })
 
-function scaledAmount(baseAmount: string): string {
-  const match = baseAmount.match(/^([0-9]+(?:\.[0-9]+)?)(.*)$/)
-  if (!match) return baseAmount
-  const value = Math.round(Number(match[1]) * multiplier.value * 100) / 100
-  return `${value}${match[2]}`
+const UNIT_OPTIONS = ['g', 'kg', 'ml', 'l', 'piece']
+
+function matchInventoryFood(mappingSuggestion: string | null, originalText: string): { foodKey: string; nameKey: string; unit: string } | undefined {
+  const normalize = (s: string) => s.toLowerCase().replace(/[-_]/g, ' ').trim()
+  const searchText = normalize(originalText)
+  const suggestion = normalize(mappingSuggestion || '')
+
+  for (const food of inventory.value) {
+    const foodKeyNorm = normalize(food.foodKey)
+    const nameKeyNorm = normalize(food.nameKey.replace('foods.', ''))
+    const nameEn = normalize(food.names?.en || '')
+
+    if (foodKeyNorm === suggestion || nameKeyNorm === suggestion || nameEn === suggestion) {
+      return { foodKey: food.foodKey, nameKey: food.nameKey, unit: food.unit }
+    }
+    if (foodKeyNorm === searchText || nameKeyNorm === searchText || nameEn === searchText) {
+      return { foodKey: food.foodKey, nameKey: food.nameKey, unit: food.unit }
+    }
+    const singular = searchText.endsWith('s') ? searchText.slice(0, -1) : searchText
+    const plural = searchText + 's'
+    if (foodKeyNorm === singular || foodKeyNorm === plural ||
+        nameEn === singular || nameEn === plural) {
+      return { foodKey: food.foodKey, nameKey: food.nameKey, unit: food.unit }
+    }
+    for (const word of searchText.split(' ')) {
+      if (word.length > 2 && (foodKeyNorm.includes(word) || nameEn.includes(word))) {
+        return { foodKey: food.foodKey, nameKey: food.nameKey, unit: food.unit }
+      }
+    }
+  }
+  return undefined
 }
 
-function updateEffectiveAmount(index: number, effectiveAmount: string) {
-  const match = effectiveAmount.match(/^([0-9]+(?:\.[0-9]+)?)(.*)$/)
-  ingredients.value[index]!.baseAmount = match
-    ? `${Math.round((Number(match[1]) / multiplier.value) * 100) / 100}${match[2]}`
-    : effectiveAmount
+function scaledQuantity(ingredient: RecipeIngredientDraft): string {
+  if (ingredient.baseQuantity === null) return ''
+  const value = Math.round(ingredient.baseQuantity * multiplier.value * 100) / 100
+  return String(value)
+}
+
+function updateEffectiveQuantity(index: number, effectiveQty: string) {
+  const qty = parseFloat(effectiveQty)
+  if (isNaN(qty)) return
+  const ingredient = ingredients.value[index]!
+  ingredient.baseQuantity = Math.round((qty / multiplier.value) * 100) / 100
+  ingredient.baseAmount = `${ingredient.baseQuantity} ${ingredient.baseUnit}`
+  markDirty()
+}
+
+function updateIngredientUnit(index: number, unit: string) {
+  const ingredient = ingredients.value[index]!
+  ingredient.baseUnit = unit
+  if (ingredient.baseQuantity !== null) {
+    ingredient.baseAmount = `${ingredient.baseQuantity} ${unit}`
+  }
   markDirty()
 }
 
@@ -165,13 +208,25 @@ function addIngredient(foodId: string) {
   if (ingredientIds.value.has(foodId)) return
   const food = inventory.value.find((item) => item.id === foodId)
   if (!food) return
-  ingredients.value.push({ id: food.id, nameKey: food.nameKey, foodKey: food.foodKey, baseAmount: 'As needed' })
+  ingredients.value.push({
+    id: food.id,
+    nameKey: food.nameKey,
+    foodKey: food.foodKey,
+    baseAmount: 'As needed',
+    baseQuantity: null,
+    baseUnit: food.unit,
+  })
   markDirty()
 }
 
 function addIngredients(foodIds: string[]) {
   foodIds.forEach(addIngredient)
   closePicker()
+}
+
+function removeIngredient(index: number) {
+  ingredients.value.splice(index, 1)
+  markDirty()
 }
 
 function addInstruction() {
@@ -191,6 +246,10 @@ function closePicker() {
 
 function ingredientFood(foodId: string) {
   return inventoryById.value.get(foodId)
+}
+
+function ingredientIndex(ingredient: RecipeIngredientDraft): number {
+  return ingredients.value.indexOf(ingredient)
 }
 
 function markDirty() {
@@ -232,7 +291,7 @@ async function saveToRecipes() {
     draftSaved.value = true
     recipeSaved.value = true
     localStorage.setItem(draftKey.value, JSON.stringify(currentDraft()))
-    void router.replace({ query: { ...route.query, savedId: stored.id } })
+    void router.replace({ path: '/recipes/view', query: { savedId: stored.id } })
   } catch {
     showNotice(t('recipeEditor.saveError') || 'Could not save recipe.')
   }
@@ -243,17 +302,6 @@ onBeforeUnmount(() => {
   clearTimeout(noticeTimer)
   if (!recipeSaved.value) persistDraftLocally()
 })
-
-async function startCooking() {
-  if (!recipeSaved.value) await saveToRecipes()
-  cookOpen.value = true
-}
-
-function onCooked() {
-  cookOpen.value = false
-  void hydrateFromServer()
-  showNotice(t('cooking.updated'))
-}
 </script>
 
 <template>
@@ -314,21 +362,64 @@ function onCooked() {
       <section class="ingredient-section">
         <h2 class="section-title"><AppIcon name="ingredients" :size="21" />{{ t('recipeEditor.ingredients') }}</h2>
         <div class="editor-ingredients stagger-in">
-          <label v-for="(ingredient, index) in ingredients" :key="ingredient.id">
+          <label v-for="ingredient in mainIngredients" :key="ingredient.id">
             <span class="ingredient-identity">
               <FoodToken
-                :food-key="ingredientFood(ingredient.id)?.foodKey"
+                :food-key="ingredient.foodKey ?? ingredientFood(ingredient.id)?.foodKey"
                 :name="t(ingredient.nameKey)"
                 :size="38"
               />
               <span>{{ t(ingredient.nameKey) }}</span>
             </span>
-            <input :value="scaledAmount(ingredient.baseAmount)" :aria-label="`${t(ingredient.nameKey)} ${t('recipeEditor.amount')}`" @input="updateEffectiveAmount(index, ($event.target as HTMLInputElement).value)">
+            <div class="ingredient-amount">
+              <input
+                :value="scaledQuantity(ingredient)"
+                type="number"
+                min="0"
+                step="any"
+                inputmode="decimal"
+                :placeholder="t('recipeEditor.amount')"
+                :aria-label="`${t(ingredient.nameKey)} ${t('recipeEditor.amount')}`"
+                @input="updateEffectiveQuantity(ingredientIndex(ingredient), ($event.target as HTMLInputElement).value)"
+              >
+              <select
+                :value="ingredient.baseUnit"
+                :disabled="!!ingredient.foodKey"
+                :aria-label="`${t(ingredient.nameKey)} ${t('recipeEditor.amount')}`"
+                @change="updateIngredientUnit(ingredientIndex(ingredient), ($event.target as HTMLSelectElement).value)"
+              >
+                <option v-for="u in UNIT_OPTIONS" :key="u" :value="u">{{ t(`units.${u}`) }}</option>
+              </select>
+            </div>
           </label>
           <button ref="addStorageButton" class="add-storage-tile" type="button" @click="pickerOpen = true">
             <AppIcon name="add" :size="20" />
             {{ t('recipeEditor.addFromStorage') }}
           </button>
+        </div>
+      </section>
+
+      <section v-if="seasoningIngredients.length" class="ingredient-section">
+        <h2 class="section-title"><AppIcon name="ingredients" :size="21" />{{ t('recipeResults.seasonings') }}</h2>
+        <div class="editor-seasonings stagger-in">
+          <div v-for="ingredient in seasoningIngredients" :key="ingredient.id" class="seasoning-row">
+            <span class="seasoning-row__identity">
+              <FoodToken
+                :food-key="ingredient.foodKey ?? ingredientFood(ingredient.id)?.foodKey"
+                :name="t(ingredient.nameKey)"
+                :size="32"
+              />
+              <span>{{ t(ingredient.nameKey) }}</span>
+            </span>
+            <button
+              type="button"
+              class="seasoning-row__remove"
+              :aria-label="t('recipeEditor.removeIngredient', { name: t(ingredient.nameKey) })"
+              @click="removeIngredient(ingredientIndex(ingredient))"
+            >
+              <AppIcon name="remove" :size="16" />
+            </button>
+          </div>
         </div>
       </section>
 
@@ -357,13 +448,9 @@ function onCooked() {
       <footer class="editor-footer sheet-up">
         <p>{{ t('recipeEditor.storageActionHint') }}</p>
         <div class="editor-footer__actions">
-          <AppButton variant="secondary" :disabled="name.trim().length === 0" @click="saveToRecipes">
+          <AppButton block :disabled="name.trim().length === 0" @click="saveToRecipes">
             <AppIcon name="save" :size="18" />
             {{ t(savedRecipeId ? 'recipeEditor.updateSavedRecipe' : 'recipeEditor.saveToRecipes') }}
-          </AppButton>
-          <AppButton class="editor-footer__cook" :disabled="name.trim().length === 0" @click="startCooking">
-            <AppIcon name="storage" :size="18" />
-            {{ t('recipeEditor.reviewAndUpdateStorage') }}
           </AppButton>
         </div>
       </footer>
@@ -375,15 +462,6 @@ function onCooked() {
       :ingredient-ids="ingredientIds"
       @close="closePicker"
       @confirm="addIngredients"
-    />
-
-    <CookingSheet
-      :open="cookOpen"
-      :recipe-name="name"
-      :ingredients="cookIngredients"
-      :foods="inventory"
-      @close="cookOpen = false"
-      @cooked="onCooked"
     />
   </div>
 </template>
@@ -567,6 +645,30 @@ textarea {
   white-space: nowrap;
 }
 
+.ingredient-amount {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.ingredient-amount input {
+  flex: 1;
+  min-height: var(--tap-target-min);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.ingredient-amount select {
+  min-height: var(--tap-target-min);
+  min-width: 72px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+}
+
 .add-storage-tile {
   display: flex;
   min-height: 96px;
@@ -578,6 +680,40 @@ textarea {
   border-radius: var(--radius-md);
   color: var(--color-primary);
   font-weight: var(--font-weight-semibold);
+}
+
+.editor-seasonings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.seasoning-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-canvas);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.seasoning-row__identity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.seasoning-row__remove {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: var(--radius-full);
+  color: var(--color-danger-ink);
+  background: var(--color-danger-soft);
 }
 
 .instruction-section__header {
@@ -655,7 +791,7 @@ textarea {
 
 .editor-footer__actions {
   display: grid;
-  grid-template-columns: auto minmax(230px, 1fr);
+  grid-template-columns: 1fr;
   gap: var(--space-2);
 }
 
@@ -709,10 +845,6 @@ textarea {
     display: grid;
     width: 100%;
     grid-template-columns: 1fr;
-  }
-
-  .editor-footer__cook {
-    grid-column: auto;
   }
 
   .portion-controls {

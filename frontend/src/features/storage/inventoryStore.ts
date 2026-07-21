@@ -139,7 +139,7 @@ function mapApiItem(item: StorageApiItem): InventoryFood {
   }
 }
 
-async function hydrateFromServer(): Promise<boolean> {
+async function refreshInventoryFromServer(): Promise<boolean> {
   try {
     const response = await fetchStorage()
     const catalogOrder = new Map(foodCatalog.map((food, index) => [food.foodKey, index]))
@@ -155,10 +155,25 @@ async function hydrateFromServer(): Promise<boolean> {
   }
 }
 
+let sharedHydration: Promise<boolean> | undefined
+
+function hydrateFromServer(): Promise<boolean> {
+  if (sharedHydration) return sharedHydration
+
+  const hydration = refreshInventoryFromServer()
+  sharedHydration = hydration
+  void hydration.finally(() => {
+    setTimeout(() => {
+      if (sharedHydration === hydration) sharedHydration = undefined
+    }, 0)
+  })
+  return hydration
+}
+
 async function checkIn(input: CheckInInput): Promise<boolean> {
   try {
     await persistCheckIn(input, crypto.randomUUID())
-    return await hydrateFromServer()
+    return await refreshInventoryFromServer()
   } catch {
     checkInLocally(input)
     syncState.value = 'local-only'
@@ -189,7 +204,7 @@ async function updateLot(lotId: string, input: UpdateLotInput): Promise<boolean>
   if (input.storedOn !== undefined) patch.storedOn = input.storedOn
   if (input.expiresOn !== undefined) patch.expiresOn = input.expiresOn
   await patchLot(lotId, patch, crypto.randomUUID())
-  return hydrateFromServer()
+  return refreshInventoryFromServer()
 }
 
 async function reduceStock(input: { foodKey: string; location: StorageLocation; amount: number; unit: InventoryUnit }): Promise<boolean> {
@@ -202,12 +217,12 @@ async function reduceStock(input: { foodKey: string; location: StorageLocation; 
     },
     crypto.randomUUID(),
   )
-  return hydrateFromServer()
+  return refreshInventoryFromServer()
 }
 
 async function discardLotById(lotId: string): Promise<boolean> {
   await discardLot(lotId, crypto.randomUUID())
-  return hydrateFromServer()
+  return refreshInventoryFromServer()
 }
 
 export function useInventoryStore() {
