@@ -61,7 +61,9 @@ def _is_event_reversible(session: Session, user_id: str, event: ActivityEventRow
     return existing_reversal is None
 
 
-def undo_activity(session: Session, user_id: str, event_id: str, idempotency_key: str) -> dict[str, object]:
+def undo_activity(
+    session: Session, user_id: str, event_id: str, idempotency_key: str
+) -> dict[str, object]:
     original = session.scalar(
         select(ActivityEventRow).where(
             ActivityEventRow.id == event_id,

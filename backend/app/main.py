@@ -78,7 +78,10 @@ def create_app() -> FastAPI:
     app.include_router(build_inventory_router(get_session, current_user), prefix="/api")
     try:
         recipe_adapters = build_recipe_adapters(settings)
-        app.include_router(build_rescue_router(get_session, recipe_adapters, current_user), prefix="/api")
+        app.include_router(
+            build_rescue_router(get_session, recipe_adapters, current_user),
+            prefix="/api",
+        )
     except ValueError:
         logging.getLogger(__name__).warning(
             "Recipe adapters unavailable; rescue search disabled."

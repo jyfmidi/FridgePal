@@ -88,7 +88,10 @@ def test_demo_seed_is_idempotent_and_makes_storage_ready(
 
     # A new user gets demo data cloned at registration
     first_client = TestClient(create_app())
-    demo_register = first_client.post("/api/auth/register", json={"username": "demo_tester", "password": "password123"})
+    demo_register = first_client.post(
+        "/api/auth/register",
+        json={"username": "demo_tester", "password": "password123"},
+    )
     assert demo_register.status_code == 201, demo_register.text
     first_storage = first_client.get("/api/storage?today=2026-07-18")
     assert first_storage.status_code == 200
@@ -98,12 +101,18 @@ def test_demo_seed_is_idempotent_and_makes_storage_ready(
 
     # Registering the same user again returns 409
     second_client = TestClient(create_app())
-    r2 = second_client.post("/api/auth/register", json={"username": "demo_tester", "password": "password123"})
+    r2 = second_client.post(
+        "/api/auth/register",
+        json={"username": "demo_tester", "password": "password123"},
+    )
     assert r2.status_code == 409
 
     # A new user gets their own demo data clone
     third_client = TestClient(create_app())
-    r3 = third_client.post("/api/auth/register", json={"username": "newbie", "password": "password123"})
+    r3 = third_client.post(
+        "/api/auth/register",
+        json={"username": "newbie", "password": "password123"},
+    )
     assert r3.status_code == 201
     third_storage = third_client.get("/api/storage?today=2026-07-18")
     assert third_storage.status_code == 200

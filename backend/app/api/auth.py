@@ -1,6 +1,7 @@
 """HTTP boundary for authentication endpoints."""
 
 import re
+from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -9,7 +10,6 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.auth.dependencies import (
     clear_session_cookie,
-    current_user_factory,
     set_session_cookie,
 )
 from app.auth.jwt import encode_token
@@ -34,7 +34,9 @@ class RegisterRequest(BaseModel):
     @classmethod
     def username_pattern(cls, value: str) -> str:
         if not USERNAME_PATTERN.match(value):
-            raise ValueError("Username may only contain letters, numbers, underscores, and hyphens.")
+            raise ValueError(
+                "Username may only contain letters, numbers, underscores, and hyphens."
+            )
         return value
 
 
@@ -52,7 +54,7 @@ class UserResponse(BaseModel):
 def build_auth_router(
     session_provider,
     session_factory: sessionmaker[Session],
-    current_user: callable,
+    current_user: Callable[..., UserContext],
 ) -> APIRouter:
     api = APIRouter()
 

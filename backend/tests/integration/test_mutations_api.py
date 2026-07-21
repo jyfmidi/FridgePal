@@ -281,7 +281,9 @@ def test_patch_base_unit_converts_every_lot_transactionally(
 def test_reduce_consumes_fefo_and_is_idempotent(tmp_path: Path, monkeypatch) -> None:
     client = make_client(tmp_path, monkeypatch)
     # Use kale (not in demo seed) to avoid interference
-    earlier = check_in(client, "reduce-earlier", food="kale", expires_on="2026-07-19", quantity="100")
+    earlier = check_in(
+        client, "reduce-earlier", food="kale", expires_on="2026-07-19", quantity="100"
+    )
     later = check_in(client, "reduce-later", food="kale", expires_on="2026-07-25", quantity="300")
 
     reduced = client.post(
