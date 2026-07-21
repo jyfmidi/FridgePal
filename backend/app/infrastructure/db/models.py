@@ -77,9 +77,11 @@ class RescueSessionRow(Base):
     selected_foods: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
     servings: Mapped[int] = mapped_column()
     locale: Mapped[str] = mapped_column(String(10), default="en")
+    cuisine: Mapped[str] = mapped_column(String(30), default="", server_default="")
     source_results: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     ai_plan: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     ai_plan_error: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    source_analyses: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     searched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

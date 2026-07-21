@@ -63,7 +63,7 @@ class RetrievalRequest(BaseModel):
     ingredients: list[RetrievalIngredientInput] = Field(min_length=1)
     servings: int = Field(ge=1)
     locale: str = "en"
-    max_candidates: int = Field(default=8, ge=1, le=20)
+    max_candidates: int = Field(default=3, ge=1, le=20)
     timeout_seconds: float = Field(default=10.0, gt=0)
 
 
@@ -78,6 +78,7 @@ class RetrievedSource(BaseModel):
     retrieved_at: datetime
     base_yield: int | None = Field(default=None, ge=1)
     used_food_ids: list[str] = Field(default_factory=list)
+    content: str = Field(default="")
 
     @field_validator("url")
     @classmethod
@@ -95,14 +96,14 @@ class RetrievalResponse(BaseModel):
 
 
 class StructuringRequest(BaseModel):
-    """Sources plus selected-food facts handed to the structuring adapter."""
+    """Selected-food facts handed to the structuring adapter."""
 
     model_config = ConfigDict(frozen=True)
 
-    sources: list[RetrievedSource] = Field(min_length=1)
     ingredients: list[RetrievalIngredientInput] = Field(min_length=1)
     servings: int = Field(ge=1)
     locale: str = "en"
+    cuisine: str = ""
     timeout_seconds: float = Field(default=30.0, gt=0)
 
 

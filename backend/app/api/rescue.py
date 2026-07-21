@@ -9,6 +9,7 @@ from app.application.rescue.service import (
     SearchCommand,
     SelectedFoodSnapshot,
     get_rescue_session,
+    list_rescue_sessions,
     search_recipe_sources,
 )
 from app.infrastructure.recipe.errors import RecipeAdapterError
@@ -34,6 +35,7 @@ class SearchRecipeRequest(BaseModel):
     )
     servings: int = Field(default=2, ge=1, le=20)
     locale: str = Field(default="en")
+    cuisine: str = Field(default="")
 
 
 def build_rescue_router(session_provider, adapters: RecipeAdapters) -> APIRouter:
@@ -61,6 +63,7 @@ def build_rescue_router(session_provider, adapters: RecipeAdapters) -> APIRouter
                     ],
                     servings=payload.servings,
                     locale=payload.locale,
+                    cuisine=payload.cuisine,
                 ),
                 adapters,
             )
@@ -68,20 +71,28 @@ def build_rescue_router(session_provider, adapters: RecipeAdapters) -> APIRouter
             session.rollback()
             mapping = {
                 "ERR-01": status.HTTP_504_GATEWAY_TIMEOUT,
-                "ERR-03": status.HTTP_404_NOT_FOUND,
                 "ERR-04": status.HTTP_503_SERVICE_UNAVAILABLE,
             }
             raise HTTPException(
-                status_code=mapping.get(str(error.code.value), status.HTTP_503_SERVICE_UNAVAILABLE),
+                status_code=mapping.get(
+                    str(error.code.value), status.HTTP_503_SERVICE_UNAVAILABLE
+                ),
                 detail=str(error),
             ) from error
 
         return {
             "sessionId": result.session_id,
-            "sources": result.sources,
-            "aiPlan": result.ai_plan,
-            "aiPlanError": result.ai_plan_error,
+            "recipes": result.recipes,
+            "recipeErrors": result.recipe_errors,
         }
+
+    @api.get("/rescue/sessions")
+    def list_sessions(
+        session: Annotated[Session, Depends(session_provider)],
+        limit: int = 3,
+    ) -> dict[str, list[dict[str, object]]]:
+        sessions = list_rescue_sessions(session, limit)
+        return {"sessions": sessions}
 
     @api.get("/rescue/{session_id}")
     def get_session(
@@ -90,7 +101,9 @@ def build_rescue_router(session_provider, adapters: RecipeAdapters) -> APIRouter
     ) -> dict[str, object]:
         result = get_rescue_session(session, session_id)
         if result is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="session not found"
+            )
         return result
 
     return api

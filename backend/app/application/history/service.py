@@ -1,5 +1,6 @@
 """History list and undo operations."""
 
+from datetime import UTC
 from uuid import uuid4
 
 from sqlalchemy import String, cast, select
@@ -31,13 +32,16 @@ def list_history(session: Session, limit: int = 50) -> list[dict[str, object]]:
     events = []
     for row in rows:
         reversible = _is_event_reversible(session, row)
+        dt = row.created_at
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
         events.append({
             "id": row.id,
             "eventType": row.event_type,
             "foodKey": row.food_definition_id,
             "quantityDelta": decimal_string(row.quantity_delta),
             "displaySnapshot": row.display_snapshot,
-            "createdAt": row.created_at.isoformat(),
+            "createdAt": dt.isoformat(),
             "reversible": reversible,
         })
     return events

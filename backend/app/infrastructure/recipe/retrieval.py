@@ -65,6 +65,19 @@ class TavilyRetrievalAdapter:
             "query": query,
             "max_results": request.max_candidates,
             "include_answer": False,
+            "exclude_domains": [
+                "youtube.com",
+                "m.youtube.com",
+                "facebook.com",
+                "www.facebook.com",
+                "tiktok.com",
+                "www.tiktok.com",
+                "instagram.com",
+                "www.instagram.com",
+                "pinterest.com",
+                "www.pinterest.com",
+                "vimeo.com",
+            ],
         }
         timeout = min(request.timeout_seconds, self._timeout)
         client = self._client
@@ -94,6 +107,7 @@ class TavilyRetrievalAdapter:
         for result in results:
             url = result.get("url", "")
             title = (result.get("title") or "").strip()
+            content = (result.get("content") or "").strip()
             publisher = urlparse(url).netloc
             if not url or not title or not publisher:
                 continue
@@ -105,6 +119,7 @@ class TavilyRetrievalAdapter:
                         publisher=publisher,
                         retrieved_at=retrieved_at,
                         used_food_ids=[],
+                        content=content[:4000],
                     )
                 )
             except ValueError:
