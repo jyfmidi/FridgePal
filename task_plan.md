@@ -1,5 +1,24 @@
 # Fridge Pal delivery work
 
+## Current task: stabilize and commit the local worktree (2026-07-21)
+
+### Goal
+Remove the date-dependent backend test failure, verify the complete dirty worktree, and commit the existing work in reviewable functional groups without losing user changes.
+
+### Phases
+1. [complete] Inventory the branch, committed work, dirty files, and fresh verification state.
+2. [complete] Stabilize the demo-seed integration test with a fixed seed date (RED observed: expected 7 Use Soon items, got 5; GREEN: focused test passes).
+3. [complete] Run the complete backend/frontend/browser verification gates.
+4. [complete] Review and stage changes by functional boundary.
+5. [complete] Create commits and verify the resulting repository state.
+
+### Errors encountered
+| Error | Attempt | Resolution |
+|---|---:|---|
+| Demo-seed integration test expected 7 Use Soon items but got 5 on 2026-07-21. | 1 | Root cause confirmed: seed uses `date.today()` while the test queries fixed date `2026-07-18`; anchor the seed date inside the test. |
+| Vite preview logged proxy errors for `/api/storage` during mocked browser tests because no backend preview was running. | 1 | Expected and non-blocking: all tested API routes are intercepted; 18/18 browser tests passed. |
+| `git add` could not create `.git/index.lock` under the read-only sandbox. | 1 | Re-run the explicit staging/commit command through the approved Git permission boundary. |
+
 ## Completed: Tasks 6–11 (Golden Loop fully implemented)
 
 ### Final state

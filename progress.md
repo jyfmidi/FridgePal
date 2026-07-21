@@ -1,5 +1,19 @@
 # Progress
 
+## 2026-07-21 (commit readiness)
+
+- Audited branch `codex/animated-loader-icons`: six loader/icon commits plus 34 unstaged paths; no staged changes.
+- Fresh verification: frontend ESLint, vue-tsc, Vite build, and `git diff --check` pass.
+- Backend pytest produced the expected RED state for the date-coupled demo seed test: 207 passed, 1 failed (`Use Soon` 5 vs 7).
+- Confirmed the root cause without modifying application behavior; next step is a test-only fixed-date seed injection.
+- Added a test-only seed-date injection for `2026-07-18`; the focused integration test now passes (GREEN).
+- Full verification passes: 208 backend tests, Ruff, Mypy (43 files), ESLint, vue-tsc, Vite production build (145 modules), `git diff --check`, and 18 Playwright mobile/desktop tests.
+- Initial explicit `git add` was blocked because `.git` is read-only in the default sandbox; source files remain unchanged and unstaged.
+- Created `e8089aa` for the deterministic demo-seed test fix.
+- Created `460da8e` for the direct LLM Meal Ideas backend refactor and contracts.
+- Created `5a8bff2` for the integrated Meal Ideas UI, looping loaders, History clarity, and browser regressions.
+- Post-commit verification is green: 208 backend tests, Ruff, Mypy, ESLint, vue-tsc, Vite build, `git diff --check`, and 18 Playwright tests.
+
 ## 2026-07-20 (Tasks 6–11)
 - Implemented Task 6 (recipe provider adapter layer), Task 7 (rescue search pipeline + results UI), Task 8 (server-backed saved recipes + recipe editor wiring), Task 9 (history timeline + compensating undo), and Task 10 (accessibility/responsive polish).
 - Task 6: versioned schemas, retrieval/structuring protocols, Tavily + OpenAI-compatible live adapters, deterministic fixtures, SSRF safe-fetch, classified errors (ERR-01..05), factory. 52 contract/security tests.

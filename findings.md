@@ -1,5 +1,12 @@
 # Findings
 
+## 2026-07-21 commit readiness
+
+- The feature branch has six committed loader/icon commits, but the working tree still contains 34 unstaged paths spanning live recipe providers, Rescue/Recipe flows, History, loader integration, and accessibility/localization work.
+- Frontend ESLint, typecheck, production build, and `git diff --check` pass on the current worktree.
+- Backend verification is 207 passed / 1 failed. The failure is deterministic date drift: `seed_demo_inventory()` uses the actual system date while `test_demo_seed_is_idempotent_and_makes_storage_ready` queries `2026-07-18`.
+- On 2026-07-21, the two demo foods with `expiry_days=3` become six days away relative to the test query and correctly classify as `LATER`, leaving five instead of seven `Use Soon` foods.
+
 ## AI provider integration
 
 - MiniMax M3 exposes no server-side web search, so LLM-only "find meal ideas" would fabricate source URLs; retrieval requires a real search API (Tavily chosen) or the deterministic fixture.
