@@ -40,6 +40,7 @@ Use this authority order when details conflict:
 - Inventory mutations are transactional, idempotent, non-negative, auditable, and reversible through compensating events.
 - AI and retrieved web content are untrusted. They may propose structured data but never write inventory.
 - English and Simplified Chinese must remain supported by the data and layout architecture.
+- User-owned data (inventory, rescue sessions, recipes, history) is isolated by `user_id`. Every repository query filters by `user_id`. Cross-user access returns 404.
 
 ## Do Not Reintroduce
 
@@ -51,14 +52,14 @@ Use this authority order when details conflict:
 - Outline-only food glyphs, literal refrigerator shelves, garden styling, or decorative cyberpunk effects.
 - Portion selection before a recipe is visible.
 - Automatic inventory changes based only on an AI plan.
-- Public-account infrastructure in the hackathon MVP.
+
 
 ## Decision Gates
 
 - Resolve `OQ-01` in Product Requirements before scaffolding. If the user delegates, use the minimal recommended stack in Implementation Plan.
 - Resolve `OQ-02` before implementing a live provider adapter. Build the internal adapter contract first and keep a deterministic fixture adapter available.
 - Do not install plugins, configure MCP servers, add credentials, or mutate workspace-external configuration without explicit user authorization.
-- The application has no authentication. Treat it as private-network software unless `OQ-03` explicitly selects protected external exposure.
+- The application supports username/password authentication with per-user data isolation. Public deployment requires `FRIDGE_PAL_JWT_SECRET` and `FRIDGE_PAL_DEMO_PASSWORD` to be set. See `OQ-03` in Product Requirements.
 
 ## Implementation Protocol
 

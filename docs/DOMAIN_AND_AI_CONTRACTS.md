@@ -391,7 +391,7 @@ Every asynchronous surface defines loading, empty, partial, stale, disabled, err
 
 ## 11. Security and Privacy
 
-- The no-auth MVP is private-network software, not public-ready software.
+- The application supports username/password authentication with per-user data isolation. User-owned data (inventory, rescue sessions, recipes, history) is isolated by `user_id`. Every repository query filters by `user_id`. Cross-user access returns 404.
 - All external URLs use `http` or `https`, open with safe external-link attributes, and are sanitized before display.
 - Source fetching rejects loopback, RFC1918/private, link-local, metadata-service, and otherwise prohibited destinations after every redirect and DNS resolution step.
 - Enforce redirect, response-size, content-type, and timeout limits.

@@ -2,7 +2,7 @@
 
 This is the canonical operations runbook for deploying Fridge Pal on one self-managed Linux server. Commands assume a clean Git checkout and Docker Compose v2.
 
-Fridge Pal has no application authentication. Do not expose it to the unrestricted public internet. Direct access through a server IP is supported only when the host or cloud firewall limits port `8080` to trusted source IP addresses.
+Fridge Pal supports username/password authentication with per-user data isolation. Public deployment requires setting `FRIDGE_PAL_JWT_SECRET` (at least 32 characters), `FRIDGE_PAL_DEMO_PASSWORD`, and `FRIDGE_PAL_COOKIE_SECURE=true` (requires HTTPS).
 
 ## 1. Deployment Architecture
 
@@ -94,6 +94,9 @@ Review these settings:
 | `APP_TIMEZONE` | User-observable calendar timezone, for example `Asia/Shanghai`. |
 | `APP_DEFAULT_LOCALE` | Initial locale, `en` or `zh-CN`. |
 | `SEED_DEMO_DATA` | Keep `true` for the current MVP demo inventory; set `false` for an empty installation. |
+| `FRIDGE_PAL_JWT_SECRET` | (none) | JWT signing secret. Required. Must be at least 32 characters. Generate with `openssl rand -hex 32`. |
+| `FRIDGE_PAL_DEMO_PASSWORD` | (none) | Password for the built-in `demo` account. Required. |
+| `FRIDGE_PAL_COOKIE_SECURE` | `false` | Sets the `Secure` flag on session cookies. Set `true` in production (requires HTTPS). |
 
 For direct server-IP access, set:
 

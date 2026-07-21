@@ -4,7 +4,7 @@ Fridge Pal is a private, self-hosted digital twin for household food storage. It
 
 **Primary promise:** Turn food that is about to expire into tonight's meal.
 
-> **Security boundary:** Fridge Pal has no authentication. Deploy it on a private network, through a VPN, or behind a firewall that permits only trusted source IPs. Unrestricted public exposure is unsupported.
+> **Security boundary:** Fridge Pal supports username/password authentication with per-user data isolation. Set `FRIDGE_PAL_JWT_SECRET`, `FRIDGE_PAL_DEMO_PASSWORD`, and `FRIDGE_PAL_COOKIE_SECURE=true` for public deployment.
 
 ## Current Status
 
@@ -201,12 +201,14 @@ The complete variable reference and operational guidance live in [docs/DEPLOYMEN
 | `APP_TIMEZONE` | `Asia/Shanghai` | Calendar and urgency timezone. |
 | `APP_DEFAULT_LOCALE` | `en` | Initial interface locale. |
 | `SEED_DEMO_DATA` | `true` | Whether deterministic MVP inventory is seeded. |
+| `FRIDGE_PAL_JWT_SECRET` | (none) | JWT signing secret (required, >= 32 chars). |
+| `FRIDGE_PAL_DEMO_PASSWORD` | (none) | Built-in demo account password (required). |
+| `FRIDGE_PAL_COOKIE_SECURE` | `false` | Secure cookie flag for HTTPS. |
 
 Secrets belong only in the untracked `.env` file or a future approved secret manager. They must never enter the frontend bundle or Git history.
 
 ## MVP Non-Goals
 
-- Public accounts, authentication, or multi-user household collaboration.
 - Unrestricted public internet deployment.
 - Photo recognition, barcode scanning, or receipt import.
 - Notifications, shopping lists, nutrition tracking, or long-term meal planning.

@@ -68,7 +68,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 
 ### 4.3 P2 — Deferred
 
-- Accounts, shared households, and permissions.
+
 - Photo recognition, barcode scanning, and receipt import.
 - Notifications and background reminders.
 - Shopping lists, nutrition tracking, and long-term meal planning.
@@ -169,7 +169,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 | `FR-I18N-001` | P0 | Initial locales are English and Simplified Chinese; English is the initial primary locale. |
 | `FR-I18N-002` | P0 | Localize food names, UI copy, dates, relative time, numbers, units, and list formatting. Do not hard-code English widths. |
 | `FR-DEP-001` | P0 | Deploy as a single-user private application through Docker Compose with persistent data in a named/documented volume. |
-| `FR-DEP-002` | P0 | The MVP has no authentication and must warn that unprotected public exposure is unsupported. |
+| `FR-DEP-002` | P0 | The application supports username/password authentication. Public deployment requires `FRIDGE_PAL_JWT_SECRET` and `FRIDGE_PAL_DEMO_PASSWORD` to be set. User data is isolated by `user_id`. |
 
 ## 6. Non-Functional Requirements
 
@@ -275,7 +275,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 |---|---|---|
 | `OQ-01` | Application framework, persistence library, and test stack. | **Resolved (user-selected):** Vite + Vue 3 + TypeScript client; FastAPI (Python) application service; SQLAlchemy 2 + Alembic on MySQL 8 in deployment, SQLite for local tests; pytest + Playwright. |
 | `OQ-02` | Recipe retrieval and recipe-structuring provider(s). | **Resolved (user-selected, revised):** Provider-neutral adapter contracts first. Retrieval uses a live Tavily search adapter (key server-side only) with a deterministic curated fixture fallback. Structuring uses a live OpenAI-compatible chat-completions adapter (default endpoint `https://api.deepseek.com/v1`, model `deepseek-chat`, key server-side only) with a deterministic fixture fallback. Configuration is provider-neutral (`LLM_*`, `SEARCH_*` env vars) so providers can be swapped without code changes. The retrieval query is built from selected ingredient names, quantities, and serving count only — not expiry/urgency. |
-| `OQ-03` | Deployment exposure. | **Resolved:** Private LAN/loopback binding, no authentication; reverse-proxy authentication is required before any public exposure. |
+| `OQ-03` | Deployment exposure. | **Resolved (revised):** Protected external exposure with application-level authentication. Users register with username/password (bcrypt). JWT in httpOnly cookies manages sessions. User-owned data is isolated by `user_id`. Public deployment requires `FRIDGE_PAL_JWT_SECRET`, `FRIDGE_PAL_DEMO_PASSWORD`, and `FRIDGE_PAL_COOKIE_SECURE=true`. |
 | `OQ-04` | Seed-library breadth and initial bilingual translations. | Seed only the demo foods plus common household staples, with an importable data file. |
 
 No coding agent may infer external providers, install integrations, or broaden scope merely because an open decision exists.
