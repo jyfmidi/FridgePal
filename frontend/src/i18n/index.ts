@@ -7,6 +7,7 @@ export const i18n = createI18n({
   messages: {
     en: {
       app: { title: 'Fridge Pal' },
+      loading: { initial: 'Loading Fridge Pal…' },
       common: { comingNext: 'This part of the MVP is coming next.', back: 'Back', done: 'Done', skipToContent: 'Skip to content' },
       navigation: { label: 'Primary navigation', storage: 'Storage', rescue: 'Rescue', recipes: 'Recipes', history: 'History' },
       storage: {
@@ -124,6 +125,7 @@ export const i18n = createI18n({
     },
     'zh-CN': {
       app: { title: 'Fridge Pal' },
+      loading: { initial: 'Fridge Pal 正在准备中…' },
       common: { comingNext: 'MVP 的这一部分将在下一步完成。', back: '返回', done: '完成', skipToContent: '跳到主要内容' },
       navigation: { label: '主导航', storage: '储藏', rescue: '拯救食材', recipes: '菜谱', history: '记录' },
       storage: {
