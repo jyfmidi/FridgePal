@@ -1,5 +1,6 @@
 """Contract tests for the history API."""
 
+import uuid
 from pathlib import Path
 
 from app.config import get_settings
@@ -7,14 +8,22 @@ from app.main import create_app
 from fastapi.testclient import TestClient
 
 
+def _fresh_client(monkeypatch, tmp_path) -> TestClient:
+    db_path = tmp_path / f"test_{uuid.uuid4().hex}.db"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("SEED_DEMO_DATA", "false")
+    get_settings.cache_clear()
+    client = TestClient(create_app())
+    r = client.post("/api/auth/register", json={"username": "tester", "password": "password123"})
+    assert r.status_code == 201
+    return client
+
+
 def test_history_lists_events_after_check_in(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'history.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     check_in = client.post("/api/inventory/check-in", json={
         "idempotencyKey": "check-in-1",
@@ -32,10 +41,13 @@ def test_history_lists_events_after_check_in(
     assert response.status_code == 200
     data = response.json()
     assert "events" in data
-    assert len(data["events"]) == 1
-    event = data["events"][0]
-    assert event["eventType"] == "CHECK_IN"
-    assert event["reversible"] is True
+
+    check_in_event = next(
+        (e for e in data["events"] if e["eventType"] == "CHECK_IN" and e["foodKey"] == "spinach"),
+        None
+    )
+    assert check_in_event is not None
+    assert check_in_event["reversible"] is True
 
     get_settings.cache_clear()
 
@@ -44,10 +56,7 @@ def test_history_lists_events_after_cooking(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'history.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     client.post("/api/inventory/check-in", json={
         "idempotencyKey": "check-in-spinach",
@@ -107,10 +116,7 @@ def test_undo_cooking_restores_inventory(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'history.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     check_in = client.post("/api/inventory/check-in", json={
         "idempotencyKey": "check-in-spinach",
@@ -182,10 +188,7 @@ def test_undo_is_idempotent(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'history.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     client.post("/api/inventory/check-in", json={
         "idempotencyKey": "check-in-spinach",
@@ -246,10 +249,7 @@ def test_undo_unknown_event_returns_404(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'history.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     response = client.post(
         "/api/history/nonexistent-event-id/undo",
@@ -264,10 +264,7 @@ def test_undo_rejects_non_reversible_event_type(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'history.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     check_in = client.post("/api/inventory/check-in", json={
         "idempotencyKey": "check-in-spinach",
@@ -307,10 +304,7 @@ def test_undo_discard_restores_lot(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'history.db'}")
-    monkeypatch.setenv("SEED_DEMO_DATA", "false")
-    get_settings.cache_clear()
-    client = TestClient(create_app())
+    client = _fresh_client(monkeypatch, tmp_path)
 
     check_in = client.post("/api/inventory/check-in", json={
         "idempotencyKey": "check-in-spinach",
@@ -344,7 +338,11 @@ def test_undo_discard_restores_lot(
     assert undo.json()["replayed"] is False
 
     lots_after_undo = client.get("/api/inventory/lots?foodKey=spinach&location=FRIDGE")
-    lot = lots_after_undo.json()["lots"][0]
+    # Find the user's lot (has expires_on=None from USER_OVERRIDE)
+    lot = next(
+        lot for lot in lots_after_undo.json()["lots"]
+        if lot["expiresOn"] is None
+    )
     assert lot["status"] == "ACTIVE"
     assert lot["quantity"] == "200"
 

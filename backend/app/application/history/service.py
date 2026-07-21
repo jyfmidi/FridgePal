@@ -17,7 +17,7 @@ from app.infrastructure.db.models import (
 REVERSIBLE_EVENT_TYPES = {"CHECK_IN", "MANUAL_CONSUMPTION", "DISCARD", "COOKING"}
 
 
-def list_history(session: Session, limit: int = 50) -> list[dict[str, object]]:
+def list_history(session: Session, user_id: str, limit: int = 50) -> list[dict[str, object]]:
     if limit < 1:
         limit = 1
     if limit > 200:
@@ -25,13 +25,14 @@ def list_history(session: Session, limit: int = 50) -> list[dict[str, object]]:
 
     rows = session.execute(
         select(ActivityEventRow)
+        .where(ActivityEventRow.user_id == user_id)
         .order_by(ActivityEventRow.created_at.desc())
         .limit(limit)
     ).scalars().all()
 
     events = []
     for row in rows:
-        reversible = _is_event_reversible(session, row)
+        reversible = _is_event_reversible(session, user_id, row)
         dt = row.created_at
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=UTC)
@@ -47,11 +48,12 @@ def list_history(session: Session, limit: int = 50) -> list[dict[str, object]]:
     return events
 
 
-def _is_event_reversible(session: Session, event: ActivityEventRow) -> bool:
+def _is_event_reversible(session: Session, user_id: str, event: ActivityEventRow) -> bool:
     if event.event_type not in REVERSIBLE_EVENT_TYPES:
         return False
     existing_reversal = session.scalar(
         select(ActivityEventRow).where(
+            ActivityEventRow.user_id == user_id,
             ActivityEventRow.event_type == InventoryReason.REVERSAL.value,
             cast(ActivityEventRow.display_snapshot["reversalOf"], String) == event.id,
         )
@@ -59,19 +61,26 @@ def _is_event_reversible(session: Session, event: ActivityEventRow) -> bool:
     return existing_reversal is None
 
 
-def undo_activity(session: Session, event_id: str, idempotency_key: str) -> dict[str, object]:
-    original = session.get(ActivityEventRow, event_id)
+def undo_activity(session: Session, user_id: str, event_id: str, idempotency_key: str) -> dict[str, object]:
+    original = session.scalar(
+        select(ActivityEventRow).where(
+            ActivityEventRow.id == event_id,
+            ActivityEventRow.user_id == user_id,
+        )
+    )
     if original is None:
         raise ValueError("event not found")
 
     existing_reversal_by_event = session.scalar(
         select(ActivityEventRow).where(
+            ActivityEventRow.user_id == user_id,
             ActivityEventRow.event_type == InventoryReason.REVERSAL.value,
             cast(ActivityEventRow.display_snapshot["reversalOf"], String) == event_id,
         )
     )
     existing_reversal_by_key = session.scalar(
         select(ActivityEventRow).where(
+            ActivityEventRow.user_id == user_id,
             ActivityEventRow.event_type == InventoryReason.REVERSAL.value,
             ActivityEventRow.idempotency_key == idempotency_key,
         )
@@ -85,6 +94,7 @@ def undo_activity(session: Session, event_id: str, idempotency_key: str) -> dict
 
     related_transactions = session.execute(
         select(InventoryTransactionRow).where(
+            InventoryTransactionRow.user_id == user_id,
             (InventoryTransactionRow.idempotency_key == original.idempotency_key)
             | (InventoryTransactionRow.idempotency_key.like(f"{original.idempotency_key}:%")),
             InventoryTransactionRow.reversal_of.is_(None),
@@ -95,7 +105,12 @@ def undo_activity(session: Session, event_id: str, idempotency_key: str) -> dict
     compensating_transactions: list[InventoryTransactionRow] = []
 
     for trans in related_transactions:
-        lot = session.get(InventoryLotRow, trans.lot_id)
+        lot = session.scalar(
+            select(InventoryLotRow).where(
+                InventoryLotRow.id == trans.lot_id,
+                InventoryLotRow.user_id == user_id,
+            )
+        )
         if lot is None:
             raise ValueError(f"lot not found: {trans.lot_id}")
 
@@ -112,6 +127,7 @@ def undo_activity(session: Session, event_id: str, idempotency_key: str) -> dict
             quantity_delta=compensating_delta,
             reversal_of=trans.id,
             idempotency_key=compensating_idem_key,
+            user_id=user_id,
         )
         compensating_transactions.append(compensating)
 
@@ -141,6 +157,7 @@ def undo_activity(session: Session, event_id: str, idempotency_key: str) -> dict
             "items": items,
         },
         idempotency_key=idempotency_key,
+        user_id=user_id,
     )
 
     session.add_all([*compensating_transactions, reversal_event])
