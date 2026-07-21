@@ -13,3 +13,4 @@ test-results/
 shots/
 *.egg-info/
 .worktrees/
+.deploy-tmp
