@@ -169,7 +169,7 @@ function openItem(food: InventoryFood) {
   color: var(--color-primary-hover);
   background: var(--color-primary-softer);
   box-shadow: inset 0 0 0 1px var(--color-primary-soft);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 .storage-search input {
@@ -250,9 +250,11 @@ function openItem(food: InventoryFood) {
   place-items: center;
   align-content: center;
   gap: var(--space-2);
+  padding: var(--space-8) var(--space-5);
   border-radius: var(--radius-card);
   color: var(--color-muted);
   background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .storage-empty__mark {

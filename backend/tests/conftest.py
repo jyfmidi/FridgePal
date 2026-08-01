@@ -3,6 +3,8 @@ import uuid
 
 os.environ.setdefault("FRIDGE_PAL_JWT_SECRET", "test-secret-at-least-thirty-two-characters-long!!")
 os.environ.setdefault("FRIDGE_PAL_DEMO_PASSWORD", "demo-pass-123")
+os.environ.setdefault("FRIDGE_PAL_ADMIN_PASSWORD", "admin-pass-123")
+os.environ.setdefault("FRIDGE_PAL_ADMIN_USERNAME", "admin")
 
 # Use a unique in-memory SQLite database per test app instance to prevent
 # state leakage between tests.

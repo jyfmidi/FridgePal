@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { fetchStorage, patchLot, persistCheckIn, reduceInventory, discardLot, type ApiLocation, type PatchLotInput, type StorageApiItem } from '../../api/inventory'
 import { i18n } from '../../i18n'
+import { registerCustomIcon, registerVisualKey } from '../../components/food-token'
 import {
   convertInventoryQuantity,
   demoInventory,
@@ -21,7 +22,7 @@ const STORAGE_KEY = 'fridgital.inventory.v1'
  * into the i18n catalogs at runtime under `foods.<foodKey>`; every view keeps
  * resolving names through the existing `t(food.nameKey)` path.
  */
-function registerCustomFoodNames(foodKey: string, names: { en: string; 'zh-CN'?: string }): string {
+export function registerCustomFoodNames(foodKey: string, names: { en: string; 'zh-CN'?: string }): string {
   i18n.global.mergeLocaleMessage('en', { foods: { [foodKey]: names.en } })
   i18n.global.mergeLocaleMessage('zh-CN', { foods: { [foodKey]: names['zh-CN'] ?? names.en } })
   return `foods.${foodKey}`
@@ -127,10 +128,16 @@ const urgencyMap: Record<StorageApiItem['urgency'], { urgency: Urgency; urgencyK
 function mapApiItem(item: StorageApiItem): InventoryFood {
   const catalogItem = foodCatalog.find((food) => food.foodKey === item.foodKey)
   const names = { en: item.names.en, 'zh-CN': item.names['zh-CN'] ?? item.names.en }
+  if (item.visualKey && item.visualKey !== item.foodKey) {
+    registerVisualKey(item.foodKey, item.visualKey)
+  }
+  if ('customIcon' in item && item.customIcon) {
+    registerCustomIcon(item.foodKey, item.customIcon)
+  }
   return {
     id: `${item.foodKey}-${item.location}`,
     foodKey: item.foodKey,
-    nameKey: catalogItem ? catalogItem.nameKey : registerCustomFoodNames(item.foodKey, names),
+    nameKey: catalogItem?.nameKey ?? registerCustomFoodNames(item.foodKey, names),
     names,
     quantity: Number(item.quantity),
     unit: normalizeLegacyInventoryUnit(item.unit),

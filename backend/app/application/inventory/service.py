@@ -13,6 +13,7 @@ from app.domain.quantity import Quantity, convert
 from app.domain.types import InventoryLotStatus, InventoryReason
 from app.infrastructure.db.models import (
     ActivityEventRow,
+    AppSettingRow,
     FoodDefinitionRow,
     InventoryLotRow,
     InventoryTransactionRow,
@@ -71,6 +72,7 @@ def check_in_food(session: Session, user_id: str, command: CheckInCommand) -> Ch
             visual_key=command.food_key,
             base_unit=command.unit,
             recommended_storage=command.location,
+            origin="USER_CREATED",
         )
         session.add(food)
         # The rows below store scalar foreign keys instead of ORM relationships.
@@ -146,24 +148,38 @@ def get_storage_overview(
         .order_by(FoodDefinitionRow.id, InventoryLotRow.storage_location)
     ).all()
 
+    # The Use Soon attention window is admin-configurable; the five-level
+    # urgency labels themselves stay fixed (contracts section 5).
+    window_row = session.get(AppSettingRow, "use_soon_window_days")
+    window_days = 5
+    if window_row is not None:
+        raw = window_row.value.get("value", window_days)
+        if isinstance(raw, int):
+            window_days = raw
+
     aggregates: dict[tuple[str, str], dict[str, object]] = {}
     ranks = {"PAST_DATE": 5, "TODAY": 4, "ONE_TO_TWO_DAYS": 3, "THREE_TO_FIVE_DAYS": 2, "LATER": 1}
     for lot, food in rows:
         key = (food.id, lot.storage_location)
         urgency = urgency_for(lot.expires_on, today)
+        days_left = (lot.expires_on - today).days if lot.expires_on is not None else None
+        in_window = days_left is not None and days_left <= window_days
         current = aggregates.get(key)
         if current is None:
             aggregates[key] = {
                 "foodKey": food.id,
                 "names": food.names,
                 "visualKey": food.visual_key,
+                "customIcon": food.custom_icon,
                 "quantityDecimal": lot.quantity,
                 "unit": food.base_unit,
                 "location": lot.storage_location,
                 "urgency": urgency,
+                "inWindow": in_window,
             }
         else:
             current["quantityDecimal"] = current["quantityDecimal"] + lot.quantity  # type: ignore[operator]
+            current["inWindow"] = bool(current["inWindow"]) or in_window
             if ranks[urgency] > ranks[str(current["urgency"])]:
                 current["urgency"] = urgency
 
@@ -173,7 +189,7 @@ def get_storage_overview(
         aggregate["quantity"] = decimal_string(quantity)  # type: ignore[arg-type]
         inventory.append(aggregate)
 
-    use_soon = [item for item in inventory if item["urgency"] != "LATER"]
+    use_soon = [item for item in inventory if item.pop("inWindow", False)]
     return {"useSoon": use_soon, "inventory": inventory}
 
 
@@ -522,9 +538,7 @@ def cooking_preview(
         food = session.get(FoodDefinitionRow, item.food_key)
         requested_amount = item.amount
         if food is not None:
-            requested_amount = convert(
-                Quantity(item.amount, item.unit), food.base_unit
-            ).value
+            requested_amount = convert(Quantity(item.amount, item.unit), food.base_unit).value
         lots = _active_lots(session, user_id, item.food_key, location)
         plan = allocate({item.food_key: requested_amount}, _allocation_lots(lots))
         shortfall = plan.shortfalls.get(item.food_key, Decimal(0))
@@ -582,9 +596,7 @@ def cooking_commit(
 ) -> CookingCommitResult:
     replay = _find_replay_event(session, user_id, command.idempotency_key)
     if replay is not None:
-        return CookingCommitResult(
-            session_id=replay.display_snapshot["sessionId"], replayed=True
-        )
+        return CookingCommitResult(session_id=replay.display_snapshot["sessionId"], replayed=True)
 
     cooking_session_id = str(uuid4())
     # Validate every allocation against the live lots before mutating anything.

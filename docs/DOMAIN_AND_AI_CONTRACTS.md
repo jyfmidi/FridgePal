@@ -347,14 +347,17 @@ Every structuring adapter returns a versioned object containing:
 
 Reject unknown schema versions, missing required structure, non-allow-listed citations, invalid quantities, or unsafe URLs. At most one automatic repair attempt is permitted before visible failure.
 
-### 8.4 Source result versus AI plan
+### 8.4 Candidate diversity
 
+One rescue search produces two recipe candidates. Generation is serial and differentiated: the second request carries the first candidate's title (`previous_title`) and must use a different cooking method, flavor direction, and title. A similarity backstop compares the pair (normalized title equality, or the same mapped ingredient set with a highly similar title) and regenerates the second candidate once before accepting it. The system prompt additionally binds output language to the request locale (Simplified Chinese for `zh-CN`).
+
+### 8.5 Source result versus AI plan
 - Recipe Source cards expose only verified normalized metadata and the fixed match belt.
 - They do not synthesize `You'll also need …` text from arbitrary pages.
 - The AI Cooking Plan may include its own complete ingredient list because it is a validated normalized recipe.
 - `Edit recipe` launches source analysis; `Website` never launches AI analysis.
 
-### 8.5 Partial analysis
+### 8.6 Partial analysis
 
 A partial RecipeDraft may open when it has a name plus at least one ingredient or instruction. Missing or uncertain fields show `Needs review`. Inference provenance is retained; inferred fields are not labeled source-verified.
 
@@ -392,6 +395,9 @@ Every asynchronous surface defines loading, empty, partial, stale, disabled, err
 ## 11. Security and Privacy
 
 - The application supports username/password authentication with per-user data isolation. User-owned data (inventory, rescue sessions, recipes, history) is isolated by `user_id`. Every repository query filters by `user_id`. Cross-user access returns 404.
+- The application refuses to start when `FRIDGE_PAL_JWT_SECRET` or `FRIDGE_PAL_DEMO_PASSWORD` is missing or invalid. JWT HS256 tokens carry `iss`/`aud` claims and expire after 24 hours; sessions live in HttpOnly, SameSite=Strict cookies.
+- Auth endpoints return stable machine-readable error codes in `detail`: `AUTH_USERNAME_TAKEN` (409), `AUTH_INVALID_CREDENTIALS` (401), `AUTH_RATE_LIMITED` (429), `AUTH_NOT_AUTHENTICATED` / `AUTH_INVALID_SESSION` (401), and `AUTH_USERNAME_INVALID` / `AUTH_PASSWORD_TOO_SHORT` / `AUTH_PASSWORD_TOO_LONG` (422). Clients map codes to localized copy; they never render raw FastAPI validation arrays.
+- Login and registration are rate-limited per client address (`AUTH_LOGIN_RATE_PER_MINUTE`, `AUTH_REGISTER_RATE_PER_MINUTE`; `0` disables). Login timing is equalized for unknown usernames to prevent enumeration through response time.
 - All external URLs use `http` or `https`, open with safe external-link attributes, and are sanitized before display.
 - Source fetching rejects loopback, RFC1918/private, link-local, metadata-service, and otherwise prohibited destinations after every redirect and DNS resolution step.
 - Enforce redirect, response-size, content-type, and timeout limits.

@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   fetchCurrentUser,
   login as apiLogin,
@@ -8,22 +8,20 @@ import {
 import type { AuthUser } from '../../api/auth'
 
 const currentUser = ref<AuthUser | null>(null)
-const loading = ref(false)
 /** Shared in-flight init so concurrent callers (router guard, App mount) await the same fetch. */
 let initPromise: Promise<void> | null = null
 
 export function useAuth() {
   const isAuthenticated = computed(() => currentUser.value !== null)
+  const isAdmin = computed(() => currentUser.value?.isAdmin === true)
 
   function init(): Promise<void> {
     if (!initPromise) {
-      loading.value = true
       initPromise = fetchCurrentUser()
         .then((user) => {
           currentUser.value = user
         })
         .finally(() => {
-          loading.value = false
           initPromise = null
         })
     }
@@ -39,9 +37,16 @@ export function useAuth() {
   }
 
   async function logout() {
-    await apiLogout()
-    currentUser.value = null
+    // Best-effort server logout; local state always clears so the UI never
+    // wedges on a failed request.
+    try {
+      await apiLogout()
+    } catch {
+      // Offline logout still ends the local session.
+    } finally {
+      currentUser.value = null
+    }
   }
 
-  return { currentUser, isAuthenticated, loading, init, login, register, logout }
+  return { currentUser, isAuthenticated, isAdmin, init, login, register, logout }
 }

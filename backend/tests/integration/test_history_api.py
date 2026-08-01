@@ -25,16 +25,19 @@ def test_history_lists_events_after_check_in(
 ) -> None:
     client = _fresh_client(monkeypatch, tmp_path)
 
-    check_in = client.post("/api/inventory/check-in", json={
-        "idempotencyKey": "check-in-1",
-        "foodKey": "spinach",
-        "names": {"en": "Spinach"},
-        "quantity": "200",
-        "unit": "g",
-        "location": "FRIDGE",
-        "storedOn": "2026-07-20",
-        "expirySource": "USER_OVERRIDE",
-    })
+    check_in = client.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "check-in-1",
+            "foodKey": "spinach",
+            "names": {"en": "Spinach"},
+            "quantity": "200",
+            "unit": "g",
+            "location": "FRIDGE",
+            "storedOn": "2026-07-20",
+            "expirySource": "USER_OVERRIDE",
+        },
+    )
     assert check_in.status_code == 201
 
     response = client.get("/api/history")
@@ -44,7 +47,7 @@ def test_history_lists_events_after_check_in(
 
     check_in_event = next(
         (e for e in data["events"] if e["eventType"] == "CHECK_IN" and e["foodKey"] == "spinach"),
-        None
+        None,
     )
     assert check_in_event is not None
     assert check_in_event["reversible"] is True
@@ -58,48 +61,64 @@ def test_history_lists_events_after_cooking(
 ) -> None:
     client = _fresh_client(monkeypatch, tmp_path)
 
-    client.post("/api/inventory/check-in", json={
-        "idempotencyKey": "check-in-spinach",
-        "foodKey": "spinach",
-        "names": {"en": "Spinach"},
-        "quantity": "200",
-        "unit": "g",
-        "location": "FRIDGE",
-        "storedOn": "2026-07-20",
-        "expirySource": "USER_OVERRIDE",
-    })
-    client.post("/api/inventory/check-in", json={
-        "idempotencyKey": "check-in-tofu",
-        "foodKey": "tofu",
-        "names": {"en": "Tofu"},
-        "quantity": "150",
-        "unit": "g",
-        "location": "FRIDGE",
-        "storedOn": "2026-07-20",
-        "expirySource": "USER_OVERRIDE",
-    })
+    client.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "check-in-spinach",
+            "foodKey": "spinach",
+            "names": {"en": "Spinach"},
+            "quantity": "200",
+            "unit": "g",
+            "location": "FRIDGE",
+            "storedOn": "2026-07-20",
+            "expirySource": "USER_OVERRIDE",
+        },
+    )
+    client.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "check-in-tofu",
+            "foodKey": "tofu",
+            "names": {"en": "Tofu"},
+            "quantity": "150",
+            "unit": "g",
+            "location": "FRIDGE",
+            "storedOn": "2026-07-20",
+            "expirySource": "USER_OVERRIDE",
+        },
+    )
 
-    preview = client.post("/api/cooking/preview", json={
-        "items": [{"foodKey": "spinach", "amount": "50", "unit": "g"}],
-        "location": "FRIDGE",
-    })
+    preview = client.post(
+        "/api/cooking/preview",
+        json={
+            "items": [{"foodKey": "spinach", "amount": "50", "unit": "g"}],
+            "location": "FRIDGE",
+        },
+    )
     assert preview.status_code == 200
     preview_data = preview.json()
     assert preview_data["feasible"] is True
     allocation = preview_data["lines"][0]["allocations"][0]
 
-    commit = client.post("/api/cooking/commit", json={
-        "idempotencyKey": "cook-1",
-        "sessionName": "Test meal",
-        "lines": [{
-            "foodKey": "spinach",
-            "allocations": [{
-                "lotId": allocation["lotId"],
-                "quantity": allocation["quantity"],
-                "lotQuantity": allocation["lotQuantity"],
-            }],
-        }],
-    })
+    commit = client.post(
+        "/api/cooking/commit",
+        json={
+            "idempotencyKey": "cook-1",
+            "sessionName": "Test meal",
+            "lines": [
+                {
+                    "foodKey": "spinach",
+                    "allocations": [
+                        {
+                            "lotId": allocation["lotId"],
+                            "quantity": allocation["quantity"],
+                            "lotQuantity": allocation["lotQuantity"],
+                        }
+                    ],
+                }
+            ],
+        },
+    )
     assert commit.status_code == 201
 
     response = client.get("/api/history")
@@ -118,16 +137,19 @@ def test_undo_cooking_restores_inventory(
 ) -> None:
     client = _fresh_client(monkeypatch, tmp_path)
 
-    check_in = client.post("/api/inventory/check-in", json={
-        "idempotencyKey": "check-in-spinach",
-        "foodKey": "spinach",
-        "names": {"en": "Spinach"},
-        "quantity": "200",
-        "unit": "g",
-        "location": "FRIDGE",
-        "storedOn": "2026-07-20",
-        "expirySource": "USER_OVERRIDE",
-    })
+    check_in = client.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "check-in-spinach",
+            "foodKey": "spinach",
+            "names": {"en": "Spinach"},
+            "quantity": "200",
+            "unit": "g",
+            "location": "FRIDGE",
+            "storedOn": "2026-07-20",
+            "expirySource": "USER_OVERRIDE",
+        },
+    )
     assert check_in.status_code == 201
 
     storage_before = client.get("/api/storage")
@@ -137,32 +159,39 @@ def test_undo_cooking_restores_inventory(
         if item["foodKey"] == "spinach"
     )
 
-    preview = client.post("/api/cooking/preview", json={
-        "items": [{"foodKey": "spinach", "amount": "50", "unit": "g"}],
-        "location": "FRIDGE",
-    })
+    preview = client.post(
+        "/api/cooking/preview",
+        json={
+            "items": [{"foodKey": "spinach", "amount": "50", "unit": "g"}],
+            "location": "FRIDGE",
+        },
+    )
     preview_data = preview.json()
     allocation = preview_data["lines"][0]["allocations"][0]
 
-    commit = client.post("/api/cooking/commit", json={
-        "idempotencyKey": "cook-undo-test",
-        "sessionName": "Test meal",
-        "lines": [{
-            "foodKey": "spinach",
-            "allocations": [{
-                "lotId": allocation["lotId"],
-                "quantity": allocation["quantity"],
-                "lotQuantity": allocation["lotQuantity"],
-            }],
-        }],
-    })
+    commit = client.post(
+        "/api/cooking/commit",
+        json={
+            "idempotencyKey": "cook-undo-test",
+            "sessionName": "Test meal",
+            "lines": [
+                {
+                    "foodKey": "spinach",
+                    "allocations": [
+                        {
+                            "lotId": allocation["lotId"],
+                            "quantity": allocation["quantity"],
+                            "lotQuantity": allocation["lotQuantity"],
+                        }
+                    ],
+                }
+            ],
+        },
+    )
     assert commit.status_code == 201
 
     history = client.get("/api/history")
-    cooking_event = next(
-        e for e in history.json()["events"]
-        if e["eventType"] == "COOKING"
-    )
+    cooking_event = next(e for e in history.json()["events"] if e["eventType"] == "COOKING")
 
     undo_response = client.post(
         f"/api/history/{cooking_event['id']}/undo",
@@ -190,43 +219,53 @@ def test_undo_is_idempotent(
 ) -> None:
     client = _fresh_client(monkeypatch, tmp_path)
 
-    client.post("/api/inventory/check-in", json={
-        "idempotencyKey": "check-in-spinach",
-        "foodKey": "spinach",
-        "names": {"en": "Spinach"},
-        "quantity": "200",
-        "unit": "g",
-        "location": "FRIDGE",
-        "storedOn": "2026-07-20",
-        "expirySource": "USER_OVERRIDE",
-    })
+    client.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "check-in-spinach",
+            "foodKey": "spinach",
+            "names": {"en": "Spinach"},
+            "quantity": "200",
+            "unit": "g",
+            "location": "FRIDGE",
+            "storedOn": "2026-07-20",
+            "expirySource": "USER_OVERRIDE",
+        },
+    )
 
-    preview = client.post("/api/cooking/preview", json={
-        "items": [{"foodKey": "spinach", "amount": "50", "unit": "g"}],
-        "location": "FRIDGE",
-    })
+    preview = client.post(
+        "/api/cooking/preview",
+        json={
+            "items": [{"foodKey": "spinach", "amount": "50", "unit": "g"}],
+            "location": "FRIDGE",
+        },
+    )
     preview_data = preview.json()
     allocation = preview_data["lines"][0]["allocations"][0]
 
-    commit = client.post("/api/cooking/commit", json={
-        "idempotencyKey": "cook-idempotent",
-        "sessionName": "Test meal",
-        "lines": [{
-            "foodKey": "spinach",
-            "allocations": [{
-                "lotId": allocation["lotId"],
-                "quantity": allocation["quantity"],
-                "lotQuantity": allocation["lotQuantity"],
-            }],
-        }],
-    })
+    commit = client.post(
+        "/api/cooking/commit",
+        json={
+            "idempotencyKey": "cook-idempotent",
+            "sessionName": "Test meal",
+            "lines": [
+                {
+                    "foodKey": "spinach",
+                    "allocations": [
+                        {
+                            "lotId": allocation["lotId"],
+                            "quantity": allocation["quantity"],
+                            "lotQuantity": allocation["lotQuantity"],
+                        }
+                    ],
+                }
+            ],
+        },
+    )
     assert commit.status_code == 201
 
     history = client.get("/api/history")
-    cooking_event = next(
-        e for e in history.json()["events"]
-        if e["eventType"] == "COOKING"
-    )
+    cooking_event = next(e for e in history.json()["events"] if e["eventType"] == "COOKING")
 
     first_undo = client.post(
         f"/api/history/{cooking_event['id']}/undo",
@@ -266,30 +305,33 @@ def test_undo_rejects_non_reversible_event_type(
 ) -> None:
     client = _fresh_client(monkeypatch, tmp_path)
 
-    check_in = client.post("/api/inventory/check-in", json={
-        "idempotencyKey": "check-in-spinach",
-        "foodKey": "spinach",
-        "names": {"en": "Spinach"},
-        "quantity": "200",
-        "unit": "g",
-        "location": "FRIDGE",
-        "storedOn": "2026-07-20",
-        "expirySource": "USER_OVERRIDE",
-    })
+    check_in = client.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "check-in-spinach",
+            "foodKey": "spinach",
+            "names": {"en": "Spinach"},
+            "quantity": "200",
+            "unit": "g",
+            "location": "FRIDGE",
+            "storedOn": "2026-07-20",
+            "expirySource": "USER_OVERRIDE",
+        },
+    )
     assert check_in.status_code == 201
     lot_id = check_in.json()["lotId"]
 
-    edit = client.patch(f"/api/lots/{lot_id}", json={
-        "idempotencyKey": "edit-lot",
-        "quantity": "150",
-    })
+    edit = client.patch(
+        f"/api/lots/{lot_id}",
+        json={
+            "idempotencyKey": "edit-lot",
+            "quantity": "150",
+        },
+    )
     assert edit.status_code == 200
 
     history = client.get("/api/history")
-    edit_event = next(
-        e for e in history.json()["events"]
-        if e["eventType"] == "EDIT"
-    )
+    edit_event = next(e for e in history.json()["events"] if e["eventType"] == "EDIT")
 
     undo = client.post(
         f"/api/history/{edit_event['id']}/undo",
@@ -306,29 +348,32 @@ def test_undo_discard_restores_lot(
 ) -> None:
     client = _fresh_client(monkeypatch, tmp_path)
 
-    check_in = client.post("/api/inventory/check-in", json={
-        "idempotencyKey": "check-in-spinach",
-        "foodKey": "spinach",
-        "names": {"en": "Spinach"},
-        "quantity": "200",
-        "unit": "g",
-        "location": "FRIDGE",
-        "storedOn": "2026-07-20",
-        "expirySource": "USER_OVERRIDE",
-    })
+    check_in = client.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "check-in-spinach",
+            "foodKey": "spinach",
+            "names": {"en": "Spinach"},
+            "quantity": "200",
+            "unit": "g",
+            "location": "FRIDGE",
+            "storedOn": "2026-07-20",
+            "expirySource": "USER_OVERRIDE",
+        },
+    )
     assert check_in.status_code == 201
     lot_id = check_in.json()["lotId"]
 
-    discard = client.post(f"/api/lots/{lot_id}/discard", json={
-        "idempotencyKey": "discard-lot",
-    })
+    discard = client.post(
+        f"/api/lots/{lot_id}/discard",
+        json={
+            "idempotencyKey": "discard-lot",
+        },
+    )
     assert discard.status_code == 200
 
     history = client.get("/api/history")
-    discard_event = next(
-        e for e in history.json()["events"]
-        if e["eventType"] == "DISCARD"
-    )
+    discard_event = next(e for e in history.json()["events"] if e["eventType"] == "DISCARD")
 
     undo = client.post(
         f"/api/history/{discard_event['id']}/undo",
@@ -339,10 +384,7 @@ def test_undo_discard_restores_lot(
 
     lots_after_undo = client.get("/api/inventory/lots?foodKey=spinach&location=FRIDGE")
     # Find the user's lot (has expires_on=None from USER_OVERRIDE)
-    lot = next(
-        lot for lot in lots_after_undo.json()["lots"]
-        if lot["expiresOn"] is None
-    )
+    lot = next(lot for lot in lots_after_undo.json()["lots"] if lot["expiresOn"] is None)
     assert lot["status"] == "ACTIVE"
     assert lot["quantity"] == "200"
 

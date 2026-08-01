@@ -96,7 +96,12 @@ class RetrievalResponse(BaseModel):
 
 
 class StructuringRequest(BaseModel):
-    """Selected-food facts handed to the structuring adapter."""
+    """Selected-food facts handed to the structuring adapter.
+
+    ``previous_title`` carries the title of an already-generated recipe for the
+    same selection so a subsequent generation can be steered to a clearly
+    different dish (the service generates two candidates per search).
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -104,6 +109,7 @@ class StructuringRequest(BaseModel):
     servings: int = Field(ge=1)
     locale: str = "en"
     cuisine: str = ""
+    previous_title: str = ""
     timeout_seconds: float = Field(default=30.0, gt=0)
 
 

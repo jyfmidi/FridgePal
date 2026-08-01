@@ -8,7 +8,8 @@ import AppTaskHeader from '../components/AppTaskHeader.vue'
 import SelectionRail from '../components/rescue/SelectionRail.vue'
 import type { Recipe, RescueSession } from '../api/rescue'
 import { fetchRescueSession } from '../api/rescue'
-import { useInventoryStore } from '../features/storage/inventoryStore'
+import { useInventoryStore, registerCustomFoodNames } from '../features/storage/inventoryStore'
+import { foodCatalog } from '../features/storage/inventory'
 import { useRescueStore } from '../features/rescue/rescueStore'
 import { formatRecipeAmount, isSeasoning, formatSeasoningAmount } from '../features/recipes/unitConversion'
 
@@ -27,16 +28,23 @@ const searchSessionId = computed(() => session.value?.sessionId ?? '')
 
 const selectedFoods = computed(() => {
   if (!session.value) return []
-  return session.value.selectedFoods.map((f) => ({
-    id: `${f.foodKey}-${f.location}`,
-    foodKey: f.foodKey,
-    nameKey: `foods.${f.foodKey.replace(/-/g, '')}`,
-    names: { en: f.names.en ?? f.foodKey, 'zh-CN': f.names['zh-CN'] ?? '' },
-    quantity: parseFloat(f.quantity),
-    unit: f.unit,
-    location: f.location.toLowerCase() as 'fridge' | 'freezer' | 'pantry',
-    urgency: 'neutral' as const,
-  }))
+  return session.value.selectedFoods.map((f) => {
+    const names = { en: f.names.en ?? f.foodKey, 'zh-CN': f.names['zh-CN'] ?? f.names.en ?? f.foodKey }
+    // Resolve the canonical catalog nameKey (e.g. foods.chickenBreast); custom
+    // foods register their snapshot names into i18n at runtime.
+    const catalogItem = foodCatalog.find((food) => food.foodKey === f.foodKey)
+    const nameKey = catalogItem?.nameKey ?? registerCustomFoodNames(f.foodKey, names)
+    return {
+      id: `${f.foodKey}-${f.location}`,
+      foodKey: f.foodKey,
+      nameKey,
+      names,
+      quantity: parseFloat(f.quantity),
+      unit: f.unit,
+      location: f.location.toLowerCase() as 'fridge' | 'freezer' | 'pantry',
+      urgency: 'neutral' as const,
+    }
+  })
 })
 
 async function loadSession() {

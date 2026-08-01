@@ -1,3 +1,4 @@
+import { apiFetch } from './client'
 export interface SavedRecipeIngredient {
   id: string
   nameKey: string
@@ -42,20 +43,20 @@ export interface SaveRecipeResponse {
 }
 
 export async function fetchRecipes(): Promise<SavedRecipe[]> {
-  const response = await fetch('/api/recipes', { credentials: 'include' })
+  const response = await apiFetch('/api/recipes', { credentials: 'include' })
   if (!response.ok) throw new Error(`Recipes fetch failed with status ${response.status}`)
   const body = await response.json() as { recipes: SavedRecipe[] }
   return body.recipes
 }
 
 export async function fetchRecipe(id: string): Promise<SavedRecipe> {
-  const response = await fetch(`/api/recipes/${encodeURIComponent(id)}`, { credentials: 'include' })
+  const response = await apiFetch(`/api/recipes/${encodeURIComponent(id)}`, { credentials: 'include' })
   if (!response.ok) throw new Error(`Recipe fetch failed with status ${response.status}`)
   return response.json() as Promise<SavedRecipe>
 }
 
 export async function saveRecipe(input: SaveRecipeInput): Promise<SaveRecipeResponse> {
-  const response = await fetch('/api/recipes', {
+  const response = await apiFetch('/api/recipes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -66,7 +67,7 @@ export async function saveRecipe(input: SaveRecipeInput): Promise<SaveRecipeResp
 }
 
 export async function updateRecipe(id: string, input: SaveRecipeInput): Promise<SaveRecipeResponse> {
-  const response = await fetch(`/api/recipes/${encodeURIComponent(id)}`, {
+  const response = await apiFetch(`/api/recipes/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',

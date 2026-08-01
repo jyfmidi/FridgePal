@@ -23,6 +23,14 @@
 | Frontend dev server | `cd frontend && npm run dev` |
 | Frontend lint/typecheck/build | `cd frontend && npm run lint && npm run typecheck && npm run build` |
 | E2E | `cd e2e && npx playwright test` |
+
+> E2E notes: Playwright starts both servers itself — the Vite dev server and a
+> dedicated FastAPI backend on port 8000 with rate limiting disabled
+> (`AUTH_*_RATE_PER_MINUTE=0`), a separate `fridgital-e2e.db` database, and
+> test-only auth credentials, so a full suite run never trips the per-address
+> auth limits or depends on a developer's `.env`. Stop any manually started
+> backend on port 8000 before running the suite locally, or Playwright reuses
+> it (with rate limiting still active).
 | Compose start | `docker compose up --build` |
 
 ---

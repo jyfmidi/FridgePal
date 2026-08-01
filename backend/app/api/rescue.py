@@ -77,9 +77,7 @@ def build_rescue_router(session_provider, adapters: RecipeAdapters, current_user
                 "ERR-04": status.HTTP_503_SERVICE_UNAVAILABLE,
             }
             raise HTTPException(
-                status_code=mapping.get(
-                    str(error.code.value), status.HTTP_503_SERVICE_UNAVAILABLE
-                ),
+                status_code=mapping.get(str(error.code.value), status.HTTP_503_SERVICE_UNAVAILABLE),
                 detail=str(error),
             ) from error
 
@@ -106,9 +104,7 @@ def build_rescue_router(session_provider, adapters: RecipeAdapters, current_user
     ) -> dict[str, object]:
         result = get_rescue_session(session, user.user_id, session_id)
         if result is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="session not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
         return result
 
     return api

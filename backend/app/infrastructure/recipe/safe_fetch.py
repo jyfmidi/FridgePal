@@ -146,9 +146,7 @@ def safe_fetch(
                 for chunk in response.iter_bytes():
                     received += len(chunk)
                     if received > max_bytes:
-                        raise SafeFetchError(
-                            f"response too large (limit {max_bytes} bytes)"
-                        )
+                        raise SafeFetchError(f"response too large (limit {max_bytes} bytes)")
                     chunks.append(chunk)
             body = b"".join(chunks)
             encoding = response.encoding or "utf-8"

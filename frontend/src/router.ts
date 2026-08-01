@@ -29,6 +29,9 @@ export const router = createRouter({
     { path: '/recipes', name: 'recipes', component: RecipesView },
     { path: '/history', name: 'history', component: HistoryView },
     { path: '/history/meal-idea/:sessionId', name: 'meal-idea-detail', component: () => import('./views/MealIdeaDetailView.vue') },
+    { path: '/admin', name: 'admin', component: () => import('./views/AdminView.vue'), meta: { adminOnly: true } },
+    { path: '/admin/foods/new', name: 'admin-food-new', component: () => import('./views/AdminFoodEditView.vue'), meta: { adminOnly: true, hideNavigation: true } },
+    { path: '/admin/foods/:foodKey', name: 'admin-food-edit', component: () => import('./views/AdminFoodEditView.vue'), meta: { adminOnly: true, hideNavigation: true } },
     { path: '/add-food', name: 'add-food', component: AddFoodView, meta: { hideNavigation: true } },
     { path: '/storage/item', name: 'storage-item', component: () => import('./views/StorageItemView.vue'), meta: { hideNavigation: true } },
     {
@@ -44,9 +47,20 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   const { isAuthenticated, init } = useAuth()
   if (!isAuthenticated.value) {
-    await init()
+    try {
+      await init()
+    } catch {
+      // Server unreachable: fall through so the guard can still route to
+      // /login instead of leaving the navigation stuck.
+    }
+  }
+  if (isAuthenticated.value && (to.name === 'login' || to.name === 'register')) {
+    return { name: 'storage' }
   }
   if (!isAuthenticated.value && !to.meta.public) {
     return { name: 'login' }
+  }
+  if (to.meta.adminOnly && !useAuth().isAdmin.value) {
+    return { name: 'storage' }
   }
 })

@@ -187,6 +187,7 @@ const urgencyScale = computed(() => [
 
 .dev-tokens__size-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3);

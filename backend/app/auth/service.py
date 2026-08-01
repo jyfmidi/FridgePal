@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from uuid import uuid4
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.password import hash_password, verify_password
@@ -14,10 +15,22 @@ USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 USERNAME_MIN_LEN = 3
 USERNAME_MAX_LEN = 32
 PASSWORD_MIN_LEN = 8
+# bcrypt ignores everything past the first 72 bytes; reject longer inputs up front
+# so two distinct long passwords can never verify as equal.
+PASSWORD_MAX_BYTES = 72
+
+# A valid precomputed bcrypt hash compared against unknown usernames so that
+# unknown-user logins take the same time as wrong-password logins (no username
+# enumeration through response timing).
+_DUMMY_HASH = hash_password("fridge-pal-dummy-password-for-timing")
 
 
 class RegisterError(Exception):
     """Raised when registration fails validation or uniqueness."""
+
+    def __init__(self, message: str, *, code: str = "AUTH_REGISTER_FAILED") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class LoginError(Exception):
@@ -29,6 +42,7 @@ class UserContext:
     user_id: str
     username: str
     is_demo: bool
+    is_admin: bool
 
 
 def create_user(
@@ -37,26 +51,47 @@ def create_user(
     password: str,
     *,
     is_demo: bool = False,
+    is_admin: bool = False,
 ) -> UserRow:
     if len(username) < USERNAME_MIN_LEN or len(username) > USERNAME_MAX_LEN:
-        raise RegisterError(f"Username must be {USERNAME_MIN_LEN}-{USERNAME_MAX_LEN} characters.")
+        raise RegisterError(
+            f"Username must be {USERNAME_MIN_LEN}-{USERNAME_MAX_LEN} characters.",
+            code="AUTH_USERNAME_INVALID",
+        )
     if not USERNAME_PATTERN.match(username):
-        raise RegisterError("Username may only contain letters, numbers, underscores, and hyphens.")
+        raise RegisterError(
+            "Username may only contain letters, numbers, underscores, and hyphens.",
+            code="AUTH_USERNAME_INVALID",
+        )
     if len(password) < PASSWORD_MIN_LEN:
-        raise RegisterError(f"Password must be at least {PASSWORD_MIN_LEN} characters.")
+        raise RegisterError(
+            f"Password must be at least {PASSWORD_MIN_LEN} characters.",
+            code="AUTH_PASSWORD_TOO_SHORT",
+        )
+    if len(password.encode("utf-8")) > PASSWORD_MAX_BYTES:
+        raise RegisterError(
+            f"Password must be at most {PASSWORD_MAX_BYTES} bytes.",
+            code="AUTH_PASSWORD_TOO_LONG",
+        )
 
     existing = session.scalar(select(UserRow).where(UserRow.username == username))
     if existing is not None:
-        raise RegisterError("Username already exists.")
+        raise RegisterError("Username already exists.", code="AUTH_USERNAME_TAKEN")
 
     user = UserRow(
         id=str(uuid4()),
         username=username,
         password_hash=hash_password(password),
         is_demo=is_demo,
+        is_admin=is_admin,
     )
     session.add(user)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as error:
+        # Lost a concurrent registration race on the unique username index.
+        session.rollback()
+        raise RegisterError("Username already exists.", code="AUTH_USERNAME_TAKEN") from error
     session.refresh(user)
     return user
 
@@ -64,8 +99,16 @@ def create_user(
 def authenticate_user(session: Session, username: str, password: str) -> UserContext:
     user = session.scalar(select(UserRow).where(UserRow.username == username))
     if user is None or not verify_password(password, user.password_hash):
+        if user is None:
+            # Equalize timing with the wrong-password path.
+            verify_password(password, _DUMMY_HASH)
         raise LoginError("Invalid credentials.")
-    return UserContext(user_id=user.id, username=user.username, is_demo=user.is_demo)
+    return UserContext(
+        user_id=user.id,
+        username=user.username,
+        is_demo=user.is_demo,
+        is_admin=user.is_admin,
+    )
 
 
 def get_user_by_id(session: Session, user_id: str) -> UserRow | None:

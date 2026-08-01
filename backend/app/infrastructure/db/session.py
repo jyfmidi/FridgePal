@@ -9,18 +9,38 @@ from app.infrastructure.db.base import Base
 
 
 def _ensure_columns(engine: Engine) -> None:
+    """Additive column migrations for databases created before a schema change.
+
+    The MVP uses ``Base.metadata.create_all`` (fresh databases always match the
+    models), so this only repairs pre-existing databases at startup. Every
+    migration is additive and idempotent.
+    """
+    migrations: tuple[tuple[str, dict[str, str]], ...] = (
+        ("rescue_sessions", {"cuisine": "VARCHAR(30) DEFAULT ''"}),
+        ("users", {"is_admin": "BOOLEAN DEFAULT 0"}),
+        (
+            "food_definitions",
+            {
+                "aliases": "JSON",
+                "category": "VARCHAR(50) DEFAULT 'other'",
+                "rounding_increment": "NUMERIC(18, 6)",
+                "package_presets": "JSON",
+                "origin": "VARCHAR(20) DEFAULT 'SEEDED'",
+                "active": "BOOLEAN DEFAULT 1",
+                "custom_icon": "TEXT",
+            },
+        ),
+    )
     inspector = inspect(engine)
-    if "rescue_sessions" not in inspector.get_table_names():
-        return
-    existing = {col["name"] for col in inspector.get_columns("rescue_sessions")}
-    if "cuisine" not in existing:
+    existing_tables = set(inspector.get_table_names())
+    for table, columns in migrations:
+        if table not in existing_tables:
+            continue
+        existing = {col["name"] for col in inspector.get_columns(table)}
         with engine.begin() as conn:
-            conn.execute(
-                text(
-                    "ALTER TABLE rescue_sessions "
-                    "ADD COLUMN cuisine VARCHAR(30) DEFAULT ''"
-                )
-            )
+            for name, definition in columns.items():
+                if name not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}"))
 
 
 def create_database(database_url: str) -> tuple[Engine, sessionmaker[Session]]:

@@ -27,12 +27,10 @@ function persist() {
   localStorage.setItem(RESCUE_KEY, JSON.stringify(selectedIds.value))
 }
 
-function syncSelectionAgainstInventory(inventory: Ref<InventoryFood[]>) {
-  const validIds = new Set(inventory.value.map((food) => food.id))
-  const before = selectedIds.value.length
-  selectedIds.value = selectedIds.value.filter((id) => validIds.has(id))
-  if (selectedIds.value.length !== before) persist()
-}
+// Note: selections are intentionally NOT pruned against Storage. `selectedFoods`
+// resolves ids through the live inventory (missing foods simply drop out), so
+// pruning would only ever destroy the persisted draft (FR-RES-005) — e.g. when
+// the store initializes against the local demo inventory before server hydration.
 
 function toggleFood(foodId: string): boolean {
   const existingIndex = selectedIds.value.indexOf(foodId)
@@ -77,8 +75,6 @@ function clearNewMealIdea() {
 }
 
 export function useRescueStore(inventory: Ref<InventoryFood[]>) {
-  syncSelectionAgainstInventory(inventory)
-
   const selectedFoods = computed(() => {
     const byId = new Map(inventory.value.map((food) => [food.id, food]))
     return selectedIds.value.map((id) => byId.get(id)).filter((food): food is InventoryFood => food !== undefined)

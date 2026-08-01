@@ -210,9 +210,9 @@ function openRecipe(recipe: SavedRecipe) {
   max-width: 440px;
   justify-items: start;
   gap: var(--space-3);
-  padding: var(--space-10) var(--space-5);
+  padding: var(--space-8) var(--space-5);
   margin: var(--space-8) auto 0;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
 }

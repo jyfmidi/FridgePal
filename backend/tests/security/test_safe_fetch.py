@@ -90,9 +90,7 @@ class TestFetchLimits:
 
     def test_redirect_to_private_target_rejected(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(
-                302, headers={"location": "http://internal.example/secret"}
-            )
+            return httpx.Response(302, headers={"location": "http://internal.example/secret"})
 
         with pytest.raises(SafeFetchError, match="prohibited"):
             safe_fetch(
@@ -145,9 +143,7 @@ class TestFetchLimits:
 
     def test_oversized_streamed_body_rejected(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(
-                200, content=b"x" * 5_000, headers={"content-type": "text/plain"}
-            )
+            return httpx.Response(200, content=b"x" * 5_000, headers={"content-type": "text/plain"})
 
         with pytest.raises(SafeFetchError, match="too large"):
             safe_fetch(
@@ -157,9 +153,7 @@ class TestFetchLimits:
                 max_bytes=1_000,
             )
 
-    @pytest.mark.parametrize(
-        "content_type", ["application/octet-stream", "image/png", None]
-    )
+    @pytest.mark.parametrize("content_type", ["application/octet-stream", "image/png", None])
     def test_disallowed_content_types_rejected(self, content_type: str | None) -> None:
         headers = {} if content_type is None else {"content-type": content_type}
 

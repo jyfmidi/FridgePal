@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -11,6 +12,7 @@ from app.infrastructure.db.models import RescueSessionRow
 from app.infrastructure.recipe.errors import RecipeAdapterError
 from app.infrastructure.recipe.factory import RecipeAdapters
 from app.infrastructure.recipe.schemas import (
+    NormalizedRecipe,
     RetrievalIngredientInput,
     StructuringRequest,
     format_quantity,
@@ -86,9 +88,7 @@ def _build_name_index(ingredient_inputs: list[RetrievalIngredientInput]) -> dict
     return index
 
 
-def _map_ingredient_food_keys(
-    recipe: Any, name_index: dict[str, str]
-) -> None:
+def _map_ingredient_food_keys(recipe: Any, name_index: dict[str, str]) -> None:
     """Set mapping_suggestion to the matched food_definition_id for each ingredient."""
     valid_ids = set(name_index.values())
     for recipe_ing in recipe.ingredients:
@@ -100,6 +100,44 @@ def _map_ingredient_food_keys(
             if name in text or name in suggestion or text in name:
                 recipe_ing.mapping_suggestion = food_id
                 break
+
+
+def _normalize_title(title: str) -> str:
+    return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", " ", title.lower()).strip()
+
+
+def _title_similarity(left: str, right: str) -> float:
+    """Jaccard similarity over word tokens, or CJK bigrams for Chinese titles."""
+    a, b = _normalize_title(left), _normalize_title(right)
+    if not a or not b:
+        return 0.0
+
+    def tokens(text: str) -> set[str]:
+        if re.search(r"[\u4e00-\u9fff]", text):
+            chars = re.sub(r"\s+", "", text)
+            return {chars[i : i + 2] for i in range(len(chars) - 1)} or {chars}
+        return set(text.split())
+
+    ta, tb = tokens(a), tokens(b)
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / len(ta | tb)
+
+
+def _recipes_too_similar(first: NormalizedRecipe, second: NormalizedRecipe) -> bool:
+    """True when two candidates are likely the same dish.
+
+    Guards the second LLM generation: identical normalized titles, or the same
+    mapped ingredient set combined with a very similar title, count as a
+    duplicate worth regenerating.
+    """
+    if _normalize_title(first.title) == _normalize_title(second.title):
+        return True
+    first_ids = {i.mapping_suggestion for i in first.ingredients if i.mapping_suggestion}
+    second_ids = {i.mapping_suggestion for i in second.ingredients if i.mapping_suggestion}
+    if first_ids and first_ids == second_ids:
+        return _title_similarity(first.title, second.title) >= 0.6
+    return False
 
 
 def search_recipe_sources(
@@ -123,7 +161,9 @@ def search_recipe_sources(
     name_index = _build_name_index(ingredient_inputs)
 
     recipes: list[dict[str, object]] = []
+    normalized_recipes: list[NormalizedRecipe] = []
     recipe_errors: list[str] = []
+    previous_title = ""
 
     for _i in range(2):
         try:
@@ -132,10 +172,18 @@ def search_recipe_sources(
                 servings=command.servings,
                 locale=command.locale,
                 cuisine=command.cuisine,
+                previous_title=previous_title,
             )
             recipe = adapters.structuring.structure(structuring_request)
             _map_ingredient_food_keys(recipe, name_index)
+            # Diversity backstop: if the second candidate still mirrors the
+            # first, regenerate it once with the same differentiation prompt.
+            if normalized_recipes and _recipes_too_similar(normalized_recipes[0], recipe):
+                recipe = adapters.structuring.structure(structuring_request)
+                _map_ingredient_food_keys(recipe, name_index)
+            normalized_recipes.append(recipe)
             recipes.append(_serialize_recipe(recipe))
+            previous_title = recipe.title
         except RecipeAdapterError as error:
             recipe_errors.append(str(error.code.value))
         except Exception:
@@ -204,15 +252,19 @@ def get_rescue_session(session: Session, user_id: str, session_id: str) -> dict[
 
 
 def list_rescue_sessions(session: Session, user_id: str, limit: int = 3) -> list[dict[str, object]]:
-    rows = session.execute(
-        select(RescueSessionRow)
-        .where(
-            RescueSessionRow.user_id == user_id,
-            RescueSessionRow.source_results.isnot(None),
+    rows = (
+        session.execute(
+            select(RescueSessionRow)
+            .where(
+                RescueSessionRow.user_id == user_id,
+                RescueSessionRow.source_results.isnot(None),
+            )
+            .order_by(RescueSessionRow.created_at.desc())
+            .limit(limit)
         )
-        .order_by(RescueSessionRow.created_at.desc())
-        .limit(limit)
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     return [
         {

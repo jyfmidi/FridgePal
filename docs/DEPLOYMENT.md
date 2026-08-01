@@ -2,7 +2,7 @@
 
 This is the canonical operations runbook for deploying Fridge Pal on one self-managed Linux server. Commands assume a clean Git checkout and Docker Compose v2.
 
-Fridge Pal supports username/password authentication with per-user data isolation. Public deployment requires setting `FRIDGE_PAL_JWT_SECRET` (at least 32 characters), `FRIDGE_PAL_DEMO_PASSWORD`, and `FRIDGE_PAL_COOKIE_SECURE=true` (requires HTTPS).
+Fridge Pal supports username/password authentication with per-user data isolation. Public deployment requires setting `FRIDGE_PAL_JWT_SECRET` (at least 32 characters), `FRIDGE_PAL_DEMO_PASSWORD`, `FRIDGE_PAL_ADMIN_PASSWORD`, and `FRIDGE_PAL_COOKIE_SECURE=true` (requires HTTPS). The application refuses to start when any required value is missing or invalid.
 
 ## 1. Deployment Architecture
 
@@ -96,6 +96,8 @@ Review these settings:
 | `SEED_DEMO_DATA` | Keep `true` for the current MVP demo inventory; set `false` for an empty installation. |
 | `FRIDGE_PAL_JWT_SECRET` | (none) | JWT signing secret. Required. Must be at least 32 characters. Generate with `openssl rand -hex 32`. |
 | `FRIDGE_PAL_DEMO_PASSWORD` | (none) | Password for the built-in `demo` account. Required. |
+| `FRIDGE_PAL_ADMIN_USERNAME` | `admin` | Fixed administrator login for the admin console (Food Library and app settings). Required. |
+| `FRIDGE_PAL_ADMIN_PASSWORD` | (none) | Password for the administrator account, at least 8 characters. Required. The value in `.env` is the source of truth and is re-synced into the database on every start, so password rotation is an edit-and-restart operation. |
 | `FRIDGE_PAL_COOKIE_SECURE` | `false` | Sets the `Secure` flag on session cookies. Set `true` in production (requires HTTPS). |
 
 For direct server-IP access, set:

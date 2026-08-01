@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppNav from './components/AppNav.vue'
 import FridgePalLoader from './components/FridgePalLoader.vue'
+import { setUnauthorizedHandler } from './api/client'
 import { useAuth } from './features/auth/authStore'
 import { useRescueStore } from './features/rescue/rescueStore'
 import { useInventoryStore } from './features/storage/inventoryStore'
@@ -31,8 +32,17 @@ router.beforeEach((to, from) => {
 
 const { inventory, hydrateFromServer } = useInventoryStore()
 const { searching, searchResult, latestSessionId } = useRescueStore(inventory)
-const { isAuthenticated, currentUser, init: initAuth, logout } = useAuth()
+const { isAuthenticated, currentUser, isAdmin, init: initAuth, logout } = useAuth()
 const { toggleLocale } = useLocale()
+
+// Expired/invalid sessions surface as 401 on any protected API call; route the
+// user back to login instead of leaving them on a broken authenticated page.
+setUnauthorizedHandler(() => {
+  currentUser.value = null
+  if (router.currentRoute.value.name !== 'login') {
+    void router.push({ name: 'login' })
+  }
+})
 
 const showCompleteDialog = ref(false)
 const initialHydrationPending = ref(true)
@@ -98,6 +108,7 @@ async function handleLogout() {
       <template v-if="isAuthenticated" #footer>
         <div class="user-widget">
           <span class="user-widget__name">{{ currentUser?.username }}</span>
+          <button v-if="isAdmin" class="user-widget__admin" type="button" @click="router.push('/admin')">{{ t('admin.title') }}</button>
           <button class="user-widget__locale" type="button" @click="toggleLocale">{{ t('common.switchLocale') }}</button>
           <button class="user-widget__logout" @click="handleLogout">{{ t('auth.logout') }}</button>
         </div>
@@ -174,6 +185,23 @@ async function handleLogout() {
   color: var(--color-ink-soft);
 }
 
+.user-widget__admin {
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink);
+  background: var(--color-surface-sunken);
+  cursor: pointer;
+  transition: background-color var(--duration-base) var(--ease-standard);
+}
+
+.user-widget__admin:hover {
+  background: var(--color-border);
+}
+
 .user-widget__locale {
   min-height: 32px;
   padding: var(--space-1) var(--space-2);
@@ -216,6 +244,13 @@ async function handleLogout() {
 
   .app-shell--task {
     display: block;
+  }
+
+  /* Center the user widget (name + locale + logout) in the left rail;
+     symmetric padding so the centered group is optically balanced. */
+  .user-widget {
+    justify-content: center;
+    padding: var(--space-1) var(--space-2);
   }
 }
 </style>

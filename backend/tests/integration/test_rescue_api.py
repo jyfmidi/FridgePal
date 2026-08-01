@@ -205,9 +205,7 @@ def test_search_is_deterministic_in_fixture_mode(
     assert first_data["sessionId"] != second_data["sessionId"]
 
     assert len(first_data["recipes"]) == len(second_data["recipes"])
-    for r1, r2 in zip(
-        first_data["recipes"], second_data["recipes"], strict=True
-    ):
+    for r1, r2 in zip(first_data["recipes"], second_data["recipes"], strict=True):
         assert r1["title"] == r2["title"]
         assert r1["steps"] == r2["steps"]
 

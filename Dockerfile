@@ -22,6 +22,9 @@ COPY backend/app ./app
 COPY backend/alembic ./alembic
 COPY backend/alembic.ini ./
 RUN pip install --no-cache-dir .
+# The runtime user is non-root; ensure every copied file stays world-readable
+# regardless of the host's umask or file mode.
+RUN chmod -R a+rX /app
 
 COPY --from=frontend /build/dist ./static
 ENV STATIC_DIR=/app/static

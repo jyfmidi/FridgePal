@@ -60,7 +60,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 
 ### 4.2 P1 — Implement Only After the Golden Loop Is Stable
 
-- Full Food Library management UI for aliases, presets, visuals, and shelf-life rules.
+- Full Food Library management UI for aliases, presets, visuals, and shelf-life rules — **delivered through the admin console (`FR-ADM-*`)**; remaining P1 scope is listed below.
 - Advanced lot-detail allocation controls.
 - Search filters such as time, cuisine, or dietary intent.
 - Recipe step editing beyond a compact secondary edit action.
@@ -161,7 +161,21 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 | `FR-HIS-001` | P0 | History is append-only and contains check-in, edit, move, manual reduction, discard, rescue search, saved recipe, cooking, deduction, and reversal events. |
 | `FR-HIS-002` | P0 | Undo creates compensating transactions/events linked to the original event; it never deletes audit history. |
 
-### 5.7 Responsive, Localization, and Deployment
+### 5.8 Admin Console
+
+| ID | Pri | Requirement |
+|---|---|---:|
+| `FR-ADM-001` | P0 | A fixed administrator account is configured through `FRIDGE_PAL_ADMIN_USERNAME` and `FRIDGE_PAL_ADMIN_PASSWORD` in `.env` and provisioned at startup. The `.env` values are the source of truth and are re-synced on every start. |
+| `FR-ADM-002` | P0 | Admin-only endpoints reject non-admin users with the stable `ADMIN_REQUIRED` code; the client never exposes admin navigation to regular users. |
+| `FR-ADM-003` | P0 | The admin can create, edit, and soft-delete Food Library entries: bilingual names, aliases, category, visual key (curated icon, automatic monogram, or an uploaded SVG/PNG custom icon), canonical base unit, package presets, recommended storage, per-location shelf-life rules, and the active flag. Soft deletion keeps historical lots and events valid. |
+| `FR-ADM-004` | P0 | Changing a food's base unit converts every existing lot transactionally when the units are same-dimension (`g↔kg`, `ml↔l`, `piece`); cross-dimension changes are rejected while lots exist. The food key is immutable after creation. |
+| `FR-ADM-005` | P0 | The active Food Library is served to every user; Add Food merges it with the built-in catalog so admin-managed presets appear in the typeahead. |
+| `FR-ADM-006` | P0 | The admin can read and write application settings (for example the Use Soon attention window) through a persisted settings store; values survive restart and take effect without code changes. |
+| `FR-ADM-007` | P0 | The admin console keeps mobile/desktop parity, English/Simplified Chinese support, and the accessibility baseline of the rest of the application. |
+| `FR-ADM-008` | P0 | Admin library and settings mutations never touch user-owned inventory, recipes, or history. |
+| `FR-ADM-009` | P0 | Uploaded icons are validated (SVG or PNG, ≤ 100 KB), SVG content is sanitized against scripting and external references, and the client renders them as images only; icons persist with the database and appear everywhere Food Tokens render. |
+
+### 5.9 Responsive, Localization, and Deployment
 
 | ID | Pri | Requirement |
 |---|---:|---|
@@ -263,6 +277,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 | Product goal | Functional requirements | Journeys | Primary verification |
 |---|---|---|---|
 | `PG-01` | `FR-INV-*`, `FR-STO-*`, `FR-COOK-*`, `FR-HIS-*` | `UJ-01`, `UJ-04`, `UJ-05` | Unit invariants, transaction integration tests, `AC-INV-*`, `AC-COOK-*`, `AC-HIS-01` |
+| `PG-01`, `PG-06` | `FR-ADM-*` | Admin console | Admin API integration tests, admin E2E (`FR-ADM-001..008`) |
 | `PG-02` | `FR-STO-002..006` | `UJ-02` | Urgency boundary tests, visual regression, `AC-STO-01` |
 | `PG-03` | `FR-RES-*`, `FR-SRC-*`, `FR-AI-*` | `UJ-02`, `UJ-03` | Adapter contracts, result E2E, `AC-RES-*`, `AC-SRC-*`, `AC-AI-01` |
 | `PG-04` | `FR-EDT-*`, `FR-RCP-*` | `UJ-03`, `UJ-06` | Scaling unit tests, editor E2E, `AC-EDT-*`, `AC-RCP-01` |
@@ -275,7 +290,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 |---|---|---|
 | `OQ-01` | Application framework, persistence library, and test stack. | **Resolved (user-selected):** Vite + Vue 3 + TypeScript client; FastAPI (Python) application service; SQLAlchemy 2 + Alembic on MySQL 8 in deployment, SQLite for local tests; pytest + Playwright. |
 | `OQ-02` | Recipe retrieval and recipe-structuring provider(s). | **Resolved (user-selected, revised):** Provider-neutral adapter contracts first. Retrieval uses a live Tavily search adapter (key server-side only) with a deterministic curated fixture fallback. Structuring uses a live OpenAI-compatible chat-completions adapter (default endpoint `https://api.deepseek.com/v1`, model `deepseek-chat`, key server-side only) with a deterministic fixture fallback. Configuration is provider-neutral (`LLM_*`, `SEARCH_*` env vars) so providers can be swapped without code changes. The retrieval query is built from selected ingredient names, quantities, and serving count only — not expiry/urgency. |
-| `OQ-03` | Deployment exposure. | **Resolved (revised):** Protected external exposure with application-level authentication. Users register with username/password (bcrypt). JWT in httpOnly cookies manages sessions. User-owned data is isolated by `user_id`. Public deployment requires `FRIDGE_PAL_JWT_SECRET`, `FRIDGE_PAL_DEMO_PASSWORD`, and `FRIDGE_PAL_COOKIE_SECURE=true`. |
+| `OQ-03` | Deployment exposure. | **Resolved (revised):** Protected external exposure with application-level authentication. Users register with username/password (bcrypt). JWT in httpOnly cookies manages sessions. Login/registration are rate-limited per client address. User-owned data is isolated by `user_id`. Public deployment requires `FRIDGE_PAL_JWT_SECRET`, `FRIDGE_PAL_DEMO_PASSWORD`, and `FRIDGE_PAL_COOKIE_SECURE=true`. A fixed administrator account (`FRIDGE_PAL_ADMIN_USERNAME`/`FRIDGE_PAL_ADMIN_PASSWORD`) is provisioned for the admin console (`FR-ADM-*`). |
 | `OQ-04` | Seed-library breadth and initial bilingual translations. | Seed only the demo foods plus common household staples, with an importable data file. |
 
 No coding agent may infer external providers, install integrations, or broaden scope merely because an open decision exists.

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { foodIcons } from './icons'
+import { customIconFor, visualKeyFor } from './visualKey'
 
 /**
  * UI-CMP-01 — Food Token.
@@ -25,7 +26,13 @@ const props = withDefaults(
 
 const { locale } = useI18n()
 
-const icon = computed(() => (props.foodKey ? foodIcons[props.foodKey] : undefined))
+const customIcon = computed(() => (props.foodKey ? customIconFor(props.foodKey) : undefined))
+
+const icon = computed(() => {
+  if (customIcon.value) return undefined
+  const visualKey = props.foodKey ? visualKeyFor(props.foodKey) : undefined
+  return visualKey ? foodIcons[visualKey] : undefined
+})
 
 /** First user-perceived grapheme cluster (spec 9: never byte/code-point indexing). */
 function firstGrapheme(text: string, loc: string): string {
@@ -69,7 +76,9 @@ const graphemeStyle = computed(() => ({ fontSize: `${Math.round(props.size * 0.4
 
 <template>
   <span class="food-token" role="img" :aria-label="name" :style="boxStyle">
-    <component :is="icon" v-if="icon" class="food-token__icon" />
+    <!-- Admin-uploaded icons render through <img>: SVG scripts never execute. -->
+    <img v-if="customIcon" class="food-token__icon" :src="customIcon" alt="" :width="size" :height="size">
+    <component :is="icon" v-else-if="icon" class="food-token__icon" />
     <span v-else class="food-token__monogram" :style="[monogramStyle, graphemeStyle]">{{ grapheme }}</span>
   </span>
 </template>
@@ -83,8 +92,10 @@ const graphemeStyle = computed(() => ({ fontSize: `${Math.round(props.size * 0.4
 }
 
 .food-token__icon {
+  display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 .food-token__monogram {

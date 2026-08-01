@@ -91,9 +91,7 @@ class TestFixtureDeterminism:
     def test_fixture_recipe_passes_validation(self) -> None:
         request = structuring_request()
         recipe = FixtureStructuringAdapter().structure(request)
-        reparsed = parse_normalized_recipe(
-            json.loads(recipe.model_dump_json()), set()
-        )
+        reparsed = parse_normalized_recipe(json.loads(recipe.model_dump_json()), set())
         assert reparsed == recipe
 
     def test_fixture_has_at_least_3_steps(self) -> None:
@@ -177,9 +175,7 @@ class TestLiveAdapterErrors:
             adapter.structure(structuring_request())
 
     def test_structuring_http_error_classified_err04(self) -> None:
-        client = httpx.Client(
-            transport=httpx.MockTransport(lambda request: httpx.Response(503))
-        )
+        client = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(503)))
         adapter = OpenAICompatibleStructuringAdapter(
             api_key="k", base_url="https://llm.example/v1", model="m", client=client
         )
@@ -194,14 +190,13 @@ class TestProviderReplacement:
         assert isinstance(adapters.structuring, FixtureStructuringAdapter)
 
     def test_live_mode_returns_live_adapters(self) -> None:
-        adapters = build_recipe_adapters(
-            Settings(recipe_provider_mode="live", llm_api_key="k")
-        )
+        adapters = build_recipe_adapters(Settings(recipe_provider_mode="live", llm_api_key="k"))
         assert isinstance(adapters.structuring, OpenAICompatibleStructuringAdapter)
 
     def test_live_mode_requires_credentials(self) -> None:
+        # `_env_file=None` keeps this independent of any developer .env file.
         with pytest.raises(ValueError, match="api_key"):
-            build_recipe_adapters(Settings(recipe_provider_mode="live"))
+            build_recipe_adapters(Settings(_env_file=None, recipe_provider_mode="live"))
 
     def test_unknown_mode_rejected(self) -> None:
         with pytest.raises(ValueError, match="unknown recipe provider mode"):
@@ -220,9 +215,16 @@ class TestProviderReplacement:
 
 class TestAmountCoercion:
     def test_range_amount_coerced(self) -> None:
-        client = llm_client([json.dumps({**valid_payload(), "ingredients": [
-            {**valid_payload()["ingredients"][0], "amount": "1-2"}
-        ]})])
+        client = llm_client(
+            [
+                json.dumps(
+                    {
+                        **valid_payload(),
+                        "ingredients": [{**valid_payload()["ingredients"][0], "amount": "1-2"}],
+                    }
+                )
+            ]
+        )
         adapter = OpenAICompatibleStructuringAdapter(
             api_key="k", base_url="https://llm.example/v1", model="m", client=client
         )
@@ -230,9 +232,16 @@ class TestAmountCoercion:
         assert recipe.ingredients[0].amount == Decimal("1")
 
     def test_fraction_amount_coerced(self) -> None:
-        client = llm_client([json.dumps({**valid_payload(), "ingredients": [
-            {**valid_payload()["ingredients"][0], "amount": "1/2"}
-        ]})])
+        client = llm_client(
+            [
+                json.dumps(
+                    {
+                        **valid_payload(),
+                        "ingredients": [{**valid_payload()["ingredients"][0], "amount": "1/2"}],
+                    }
+                )
+            ]
+        )
         adapter = OpenAICompatibleStructuringAdapter(
             api_key="k", base_url="https://llm.example/v1", model="m", client=client
         )

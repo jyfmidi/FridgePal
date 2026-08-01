@@ -1,9 +1,11 @@
+import { apiFetch } from './client'
 import type { CheckInInput } from '../features/storage/inventoryStore'
 
 export interface StorageApiItem {
   foodKey: string
   names: { en: string; 'zh-CN'?: string }
   visualKey: string
+  customIcon: string | null
   quantity: string
   unit: string
   location: 'FRIDGE' | 'FREEZER' | 'PANTRY'
@@ -105,7 +107,7 @@ export interface CookingCommitResponse {
 }
 
 export async function cookingPreview(items: CookingPreviewItem[]): Promise<CookingPreviewResponse> {
-  const response = await fetch('/api/cooking/preview', {
+  const response = await apiFetch('/api/cooking/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -118,7 +120,7 @@ export async function cookingPreview(items: CookingPreviewItem[]): Promise<Cooki
 export async function cookingCommit(
   input: { idempotencyKey: string; sessionName?: string; lines: CookingCommitLine[] },
 ): Promise<CookingCommitResponse> {
-  const response = await fetch('/api/cooking/commit', {
+  const response = await apiFetch('/api/cooking/commit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -144,7 +146,7 @@ async function readErrorDetail(response: Response): Promise<string> {
 }
 
 export async function persistCheckIn(input: CheckInInput, idempotencyKey: string): Promise<CheckInResponse> {
-  const response = await fetch('/api/inventory/check-in', {
+  const response = await apiFetch('/api/inventory/check-in', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -167,7 +169,7 @@ export async function persistCheckIn(input: CheckInInput, idempotencyKey: string
 }
 
 export async function fetchStorage(): Promise<StorageResponse> {
-  const response = await fetch('/api/storage', { credentials: 'include' })
+  const response = await apiFetch('/api/storage', { credentials: 'include' })
   if (!response.ok) throw new Error(`Storage fetch failed with status ${response.status}`)
   return response.json() as Promise<StorageResponse>
 }
@@ -175,14 +177,14 @@ export async function fetchStorage(): Promise<StorageResponse> {
 /** Lots for one food/location pair, in server (FEFO) order, excluding discarded lots. */
 export async function fetchLots(foodKey: string, location: ApiLocation): Promise<InventoryLot[]> {
   const params = new URLSearchParams({ foodKey, location })
-  const response = await fetch(`/api/inventory/lots?${params}`, { credentials: 'include' })
+  const response = await apiFetch(`/api/inventory/lots?${params}`, { credentials: 'include' })
   if (!response.ok) throw new Error(`Lots fetch failed with status ${response.status}`)
   const body = (await response.json()) as LotsResponse
   return body.lots
 }
 
 export async function patchLot(lotId: string, input: PatchLotInput, idempotencyKey: string): Promise<LotMutationResponse> {
-  const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}`, {
+  const response = await apiFetch(`/api/lots/${encodeURIComponent(lotId)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -196,7 +198,7 @@ export async function reduceInventory(
   input: { foodKey: string; location: ApiLocation; amount: string; unit: string },
   idempotencyKey: string,
 ): Promise<ReduceResponse> {
-  const response = await fetch('/api/inventory/reduce', {
+  const response = await apiFetch('/api/inventory/reduce', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -213,7 +215,7 @@ export async function reduceInventory(
 }
 
 export async function discardLot(lotId: string, idempotencyKey: string): Promise<LotMutationResponse> {
-  const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/discard`, {
+  const response = await apiFetch(`/api/lots/${encodeURIComponent(lotId)}/discard`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',

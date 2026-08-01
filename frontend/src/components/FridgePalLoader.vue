@@ -42,7 +42,8 @@ withDefaults(defineProps<{
 
 .fridge-pal-loader--page {
   gap: var(--space-3);
-  min-height: min(52vh, 420px);
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .fridge-pal-loader__mark {

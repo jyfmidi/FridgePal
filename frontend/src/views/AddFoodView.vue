@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
@@ -9,7 +9,6 @@ import LocationFilterBar from '../components/LocationFilterBar.vue'
 import {
   compatibleInventoryUnits,
   convertInventoryQuantity,
-  foodCatalog,
   inventoryUnits,
   isInventoryUnit,
   roundInventoryQuantity,
@@ -17,11 +16,19 @@ import {
   type InventoryUnit,
   type StorageLocation,
 } from '../features/storage/inventory'
+import { useFoodLibrary } from '../features/storage/libraryStore'
 import { useInventoryStore } from '../features/storage/inventoryStore'
 
 const { t, locale } = useI18n()
 const router = useRouter()
 const { inventory, checkIn } = useInventoryStore()
+const { catalog, hydrateLibrary } = useFoodLibrary()
+
+onMounted(() => {
+  // The Food Library is admin-managed; merge server truth with the static
+  // catalog so newly added preset foods appear in the typeahead.
+  void hydrateLibrary()
+})
 
 const today = new Date().toISOString().slice(0, 10)
 const query = ref('')
@@ -43,9 +50,38 @@ const saving = ref(false)
 
 const trimmedQuery = computed(() => query.value.trim())
 
+const selectedPresets = computed(() => {
+  if (!selected.value || 'custom' in selected.value) return []
+  return selected.value.packagePresets ?? []
+})
+
+function presetLabel(preset: NonNullable<FoodCatalogItem['packagePresets']>[number]): string {
+  const activeLocale = locale.value as 'en' | 'zh-CN'
+  return preset.label[activeLocale] ?? preset.label.en
+}
+
+/** Localized display name: catalog i18n key first, raw server names second. */
+function displayName(food: FoodCatalogItem): string {
+  const activeLocale = locale.value as 'en' | 'zh-CN'
+  return food.nameKey ? t(food.nameKey) : (food.names[activeLocale] ?? food.names.en)
+}
+
+/** Typeahead match: localized name plus admin-managed aliases (both locales). */
+function foodMatches(food: FoodCatalogItem, normalized: string): boolean {
+  if (!normalized) return true
+  const haystack = [
+    displayName(food),
+    food.names.en,
+    food.names['zh-CN'],
+    ...(food.aliases?.en ?? []),
+    ...(food.aliases?.['zh-CN'] ?? []),
+  ]
+  return haystack.some((text) => text && text.toLocaleLowerCase(locale.value).includes(normalized))
+}
+
 const suggestions = computed(() => {
   const normalized = trimmedQuery.value.toLocaleLowerCase(locale.value)
-  return foodCatalog.filter((food) => !normalized || t(food.nameKey).toLocaleLowerCase(locale.value).includes(normalized)).slice(0, 8)
+  return catalog.value.filter((food) => foodMatches(food, normalized)).slice(0, 8)
 })
 
 const showCreateCustom = computed(() => trimmedQuery.value.length > 0 && suggestions.value.length === 0)
@@ -116,6 +152,12 @@ function chooseUnit(event: Event) {
   unit.value = nextUnit
 }
 
+/** Quick-fill quantity and unit from an admin-managed package preset. */
+function applyPreset(preset: NonNullable<FoodCatalogItem['packagePresets']>[number]) {
+  unit.value = preset.unit
+  quantity.value = preset.amount
+}
+
 async function save() {
   const selection = selected.value
   if (!selection || quantity.value <= 0) return
@@ -150,12 +192,12 @@ async function save() {
             type="button"
             class="food-suggestion"
             :class="{ 'food-suggestion--selected': selected?.foodKey === food.foodKey }"
-            :aria-label="t(food.nameKey)"
+            :aria-label="displayName(food)"
             :aria-pressed="selected?.foodKey === food.foodKey"
             @click="chooseFood(food)"
           >
-            <FoodToken :food-key="food.foodKey" :name="t(food.nameKey)" :size="50" />
-            <span>{{ t(food.nameKey) }}</span>
+            <FoodToken :food-key="food.visualKey ?? food.foodKey" :name="displayName(food)" :size="50" />
+            <span>{{ displayName(food) }}</span>
           </button>
         </div>
         <button
@@ -192,6 +234,22 @@ async function save() {
             </select>
             <small v-if="isCustomSelected">{{ t('addFood.baseUnitHint') }}</small>
           </label>
+        </section>
+
+        <section v-if="selectedPresets.length" class="form-section">
+          <span class="field-label">{{ t('addFood.presets') }}</span>
+          <div class="preset-row">
+            <button
+              v-for="(preset, index) in selectedPresets"
+              :key="index"
+              type="button"
+              class="preset-chip"
+              :aria-label="t('addFood.applyPreset', { label: presetLabel(preset) })"
+              @click="applyPreset(preset)"
+            >
+              {{ presetLabel(preset) }} · {{ preset.amount }} {{ t(`units.${preset.unit}`, preset.amount) }}
+            </button>
+          </div>
         </section>
 
         <section class="form-section form-row">
@@ -320,6 +378,27 @@ async function save() {
   display: block;
   margin-top: var(--space-1);
   color: var(--color-muted);
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.preset-chip {
+  min-height: var(--tap-target-min);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-soft);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  transition: background-color var(--duration-base) var(--ease-standard);
+}
+
+.preset-chip:hover {
+  background: var(--color-primary-softer);
 }
 
 .save-bar {

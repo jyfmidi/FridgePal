@@ -23,12 +23,16 @@ def list_history(session: Session, user_id: str, limit: int = 50) -> list[dict[s
     if limit > 200:
         limit = 200
 
-    rows = session.execute(
-        select(ActivityEventRow)
-        .where(ActivityEventRow.user_id == user_id)
-        .order_by(ActivityEventRow.created_at.desc())
-        .limit(limit)
-    ).scalars().all()
+    rows = (
+        session.execute(
+            select(ActivityEventRow)
+            .where(ActivityEventRow.user_id == user_id)
+            .order_by(ActivityEventRow.created_at.desc())
+            .limit(limit)
+        )
+        .scalars()
+        .all()
+    )
 
     events = []
     for row in rows:
@@ -36,15 +40,17 @@ def list_history(session: Session, user_id: str, limit: int = 50) -> list[dict[s
         dt = row.created_at
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=UTC)
-        events.append({
-            "id": row.id,
-            "eventType": row.event_type,
-            "foodKey": row.food_definition_id,
-            "quantityDelta": decimal_string(row.quantity_delta),
-            "displaySnapshot": row.display_snapshot,
-            "createdAt": dt.isoformat(),
-            "reversible": reversible,
-        })
+        events.append(
+            {
+                "id": row.id,
+                "eventType": row.event_type,
+                "foodKey": row.food_definition_id,
+                "quantityDelta": decimal_string(row.quantity_delta),
+                "displaySnapshot": row.display_snapshot,
+                "createdAt": dt.isoformat(),
+                "reversible": reversible,
+            }
+        )
     return events
 
 
@@ -94,14 +100,18 @@ def undo_activity(
     if original.event_type not in REVERSIBLE_EVENT_TYPES:
         raise ValueError("event type is not reversible")
 
-    related_transactions = session.execute(
-        select(InventoryTransactionRow).where(
-            InventoryTransactionRow.user_id == user_id,
-            (InventoryTransactionRow.idempotency_key == original.idempotency_key)
-            | (InventoryTransactionRow.idempotency_key.like(f"{original.idempotency_key}:%")),
-            InventoryTransactionRow.reversal_of.is_(None),
+    related_transactions = (
+        session.execute(
+            select(InventoryTransactionRow).where(
+                InventoryTransactionRow.user_id == user_id,
+                (InventoryTransactionRow.idempotency_key == original.idempotency_key)
+                | (InventoryTransactionRow.idempotency_key.like(f"{original.idempotency_key}:%")),
+                InventoryTransactionRow.reversal_of.is_(None),
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     items: list[dict[str, object]] = []
     compensating_transactions: list[InventoryTransactionRow] = []
@@ -142,11 +152,13 @@ def undo_activity(
             ):
                 lot.status = InventoryLotStatus.ACTIVE.value
 
-        items.append({
-            "lotId": lot.id,
-            "quantityDelta": decimal_string(compensating_delta),
-            "unit": "",
-        })
+        items.append(
+            {
+                "lotId": lot.id,
+                "quantityDelta": decimal_string(compensating_delta),
+                "unit": "",
+            }
+        )
 
     reversal_event = ActivityEventRow(
         id=str(uuid4()),

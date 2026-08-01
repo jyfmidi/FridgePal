@@ -1,3 +1,4 @@
+import { apiFetch } from './client'
 export interface PlanIngredient {
   originalText: string
   amountKind: string
@@ -40,7 +41,7 @@ export async function searchRecipes(
   locale: string,
   cuisine: string,
 ): Promise<SearchResponse> {
-  const response = await fetch('/api/rescue/search', {
+  const response = await apiFetch('/api/rescue/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -66,13 +67,13 @@ export interface RescueSession {
 }
 
 export async function fetchRescueSession(sessionId: string): Promise<RescueSession> {
-  const response = await fetch(`/api/rescue/${encodeURIComponent(sessionId)}`, { credentials: 'include' })
+  const response = await apiFetch(`/api/rescue/${encodeURIComponent(sessionId)}`, { credentials: 'include' })
   if (!response.ok) throw new Error(`Rescue session fetch failed with status ${response.status}`)
   return response.json() as Promise<RescueSession>
 }
 
 export async function fetchMealIdeaHistory(limit: number = 3): Promise<RescueSession[]> {
-  const response = await fetch(`/api/rescue/sessions?limit=${limit}`, { credentials: 'include' })
+  const response = await apiFetch(`/api/rescue/sessions?limit=${limit}`, { credentials: 'include' })
   if (!response.ok) throw new Error(`Meal idea history fetch failed with status ${response.status}`)
   const body = await response.json() as { sessions: RescueSession[] }
   return body.sessions

@@ -19,9 +19,19 @@ const confirmPassword = ref('')
 const error = ref('')
 const submitting = ref(false)
 
+const USERNAME_PATTERN = /^[a-zA-Z0-9_-]{3,32}$/
+
 async function handleSubmit() {
   error.value = ''
 
+  if (!USERNAME_PATTERN.test(username.value)) {
+    error.value = t('auth.usernameInvalid')
+    return
+  }
+  if (password.value.length < 8) {
+    error.value = t('auth.passwordTooShort')
+    return
+  }
   if (password.value !== confirmPassword.value) {
     error.value = t('auth.passwordMismatch')
     return

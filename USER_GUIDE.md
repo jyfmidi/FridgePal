@@ -116,6 +116,7 @@ Open **History**.
 - Switch between English and Simplified Chinese from the account menu.
 - Resize the browser or open the app on a phone. Mobile and desktop provide the same features.
 - Try keyboard navigation and reduced-motion mode. Fridge Pal includes visible focus states, accessible labels, and reduced-motion support.
+- **Admin console.** Sign in with the administrator account configured in `.env` (`FRIDGE_PAL_ADMIN_USERNAME` / `FRIDGE_PAL_ADMIN_PASSWORD`, default `admin`) and use the `Admin` button in the account menu to manage the Food Library: add preset foods with bilingual names, aliases, categories, Food Token icons, package sizes, and per-location shelf-life rules, or tune app settings such as the Use Soon window. Regular user accounts never see this entry.
 
 ## Stop or reset the local demo
 

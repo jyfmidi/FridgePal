@@ -68,6 +68,7 @@ def test_check_in_is_idempotent_and_storage_aggregates_lots(
             "foodKey": "kale",
             "names": {"en": "Kale", "zh-CN": "羽衣甘蓝"},
             "visualKey": "kale",
+            "customIcon": None,
             "quantity": "350",
             "unit": "g",
             "location": "FRIDGE",
@@ -93,7 +94,9 @@ def test_demo_seed_is_idempotent_and_makes_storage_ready(
         json={"username": "demo_tester", "password": "password123"},
     )
     assert demo_register.status_code == 201, demo_register.text
-    first_storage = first_client.get("/api/storage?today=2026-07-18")
+    # Seeds are stamped with the current date, so the view must use the same day.
+    seed_day = date.today().isoformat()
+    first_storage = first_client.get(f"/api/storage?today={seed_day}")
     assert first_storage.status_code == 200
     # Demo data has 16 items; verify inventory is non-empty
     assert len(first_storage.json()["inventory"]) >= 15
@@ -114,7 +117,7 @@ def test_demo_seed_is_idempotent_and_makes_storage_ready(
         json={"username": "newbie", "password": "password123"},
     )
     assert r3.status_code == 201
-    third_storage = third_client.get("/api/storage?today=2026-07-18")
+    third_storage = third_client.get(f"/api/storage?today={seed_day}")
     assert third_storage.status_code == 200
     assert len(third_storage.json()["inventory"]) >= 15
     get_settings.cache_clear()
@@ -175,9 +178,7 @@ def test_startup_normalizes_legacy_count_aliases_idempotently(
 
     assert first.status_code == 200
     assert {item["unit"] for item in first.json()["inventory"]} == {"piece"}
-    quantities = {
-        item["foodKey"]: item["quantity"] for item in first.json()["inventory"]
-    }
+    quantities = {item["foodKey"]: item["quantity"] for item in first.json()["inventory"]}
     assert quantities == {
         "legacy-head": "1",
         "legacy-bulb": "2",

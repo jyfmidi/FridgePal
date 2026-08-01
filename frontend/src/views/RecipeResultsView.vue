@@ -149,7 +149,7 @@ function seasoningIngredients(recipe: Recipe) {
 .results-empty {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-5);
+  padding: var(--space-8) var(--space-5);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
@@ -340,11 +340,12 @@ function seasoningIngredients(recipe: Recipe) {
 }
 
 .recipe-errors {
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
   background: var(--color-primary-softer);
   text-align: center;
   color: var(--color-muted);
+  font-size: var(--font-size-sm);
 }
 
 @media (min-width: 700px) {

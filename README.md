@@ -23,6 +23,7 @@ When several ingredients need to be used soon, I want a quick way to turn them i
 - **Rescue ingredients with AI.** Select up to seven foods and generate a meal idea around what is already available.
 - **Adjust the recipe.** Review ingredients, change portions, and edit the recipe before cooking.
 - **Keep Storage honest.** Confirm what was actually used before any inventory quantity changes.
+- **Manage the Food Library.** A fixed admin account (`FRIDGE_PAL_ADMIN_USERNAME` / `FRIDGE_PAL_ADMIN_PASSWORD` in `.env`) opens the admin console to add or edit preset foods, pick Food Token icons, configure shelf-life defaults, package sizes, and app settings such as the Use Soon window.
 - **Use it anywhere.** The same workflow works on mobile and desktop in English and Simplified Chinese.
 
 ## The main flow
@@ -59,7 +60,7 @@ AI has a focused role inside Fridge Pal. It receives the ingredients selected by
 
 AI output is treated as a suggestion, not trusted inventory data. It cannot add, remove, or consume food. `Update storage` is a separate confirmation step owned by the user.
 
-I originally explored searching published recipes with Tavily and asking AI to extract structured recipe data. Recipe pages were inconsistent and noisy, reliable extraction was difficult, and reusing published content introduced attribution and copyright concerns. For the hackathon, I chose a simpler approach: generate original meal ideas directly from the selected ingredients.
+I originally explored searching published recipes with Tavily and asking AI to extract structured recipe data. Recipe pages were inconsistent and noisy, reliable extraction was difficult, and reusing published content introduced attribution and copyright concerns. For the hackathon, I chose a simpler approach: generate original meal ideas directly from the selected ingredients. Each search produces two clearly different candidates (a diversity prompt steers the second dish to another cooking method, with a similarity backstop), and output follows the request locale (Simplified Chinese when the app language is Chinese).
 
 ## Tech stack
 
@@ -147,6 +148,16 @@ At minimum, configure:
 - `FRIDGE_PAL_DEMO_PASSWORD`
 - `MYSQL_PASSWORD`
 
+Optional auth tuning (defaults are fine for a private deployment):
+
+- `FRIDGE_PAL_COOKIE_SECURE=true` in production behind HTTPS
+- `AUTH_LOGIN_RATE_PER_MINUTE` / `AUTH_REGISTER_RATE_PER_MINUTE` (requests per
+  minute per client address; `0` disables)
+- `SEED_DEMO_DATA=false` to start without the deterministic demo inventory
+
+The application refuses to start when `FRIDGE_PAL_JWT_SECRET` or
+`FRIDGE_PAL_DEMO_PASSWORD` is missing or too short.
+
 Then build and start the app:
 
 ```bash
@@ -174,6 +185,11 @@ npm run build
 
 # Deployment configuration
 docker compose --env-file .env.example config --quiet
+
+# Browser end-to-end (Playwright starts its own backend with rate limiting
+# disabled and a dedicated e2e database; no manual servers needed)
+cd e2e
+npx playwright test
 ```
 
 ## What I learned

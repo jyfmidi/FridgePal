@@ -21,27 +21,33 @@ def test_user_cannot_see_other_users_storage(
     bob = TestClient(app)
     bob.post("/api/auth/register", json={"username": "bob_iso", "password": "password123"})
 
-    alice.post("/api/inventory/check-in", json={
-        "idempotencyKey": "alice-unique-food",
-        "foodKey": "alice-exclusive-food",
-        "names": {"en": "Alice Exclusive"},
-        "quantity": "100",
-        "unit": "g",
-        "location": "FRIDGE",
-        "storedOn": "2026-07-21",
-        "expirySource": "USER_OVERRIDE",
-    })
+    alice.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "alice-unique-food",
+            "foodKey": "alice-exclusive-food",
+            "names": {"en": "Alice Exclusive"},
+            "quantity": "100",
+            "unit": "g",
+            "location": "FRIDGE",
+            "storedOn": "2026-07-21",
+            "expirySource": "USER_OVERRIDE",
+        },
+    )
 
-    bob.post("/api/inventory/check-in", json={
-        "idempotencyKey": "bob-unique-food",
-        "foodKey": "bob-exclusive-food",
-        "names": {"en": "Bob Exclusive"},
-        "quantity": "200",
-        "unit": "g",
-        "location": "FRIDGE",
-        "storedOn": "2026-07-21",
-        "expirySource": "USER_OVERRIDE",
-    })
+    bob.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "bob-unique-food",
+            "foodKey": "bob-exclusive-food",
+            "names": {"en": "Bob Exclusive"},
+            "quantity": "200",
+            "unit": "g",
+            "location": "FRIDGE",
+            "storedOn": "2026-07-21",
+            "expirySource": "USER_OVERRIDE",
+        },
+    )
 
     alice_storage = alice.get("/api/storage").json()
     bob_storage = bob.get("/api/storage").json()
@@ -73,16 +79,19 @@ def test_user_cannot_patch_other_users_lot(
     bob = TestClient(app)
     bob.post("/api/auth/register", json={"username": "bob_patch", "password": "password123"})
 
-    alice.post("/api/inventory/check-in", json={
-        "idempotencyKey": "alice-lot-test",
-        "foodKey": "alice-lot-food",
-        "names": {"en": "Alice Lot Food"},
-        "quantity": "100",
-        "unit": "g",
-        "location": "FRIDGE",
-        "storedOn": "2026-07-21",
-        "expirySource": "USER_OVERRIDE",
-    })
+    alice.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "alice-lot-test",
+            "foodKey": "alice-lot-food",
+            "names": {"en": "Alice Lot Food"},
+            "quantity": "100",
+            "unit": "g",
+            "location": "FRIDGE",
+            "storedOn": "2026-07-21",
+            "expirySource": "USER_OVERRIDE",
+        },
+    )
 
     alice_lots = alice.get("/api/inventory/lots?foodKey=alice-lot-food&location=FRIDGE").json()
     alice_lot_id = alice_lots["lots"][0]["lotId"]
@@ -112,16 +121,19 @@ def test_user_cannot_discard_other_users_lot(
     bob = TestClient(app)
     bob.post("/api/auth/register", json={"username": "bob_disc", "password": "password123"})
 
-    alice.post("/api/inventory/check-in", json={
-        "idempotencyKey": "alice-discard-test",
-        "foodKey": "alice-discard-food",
-        "names": {"en": "Alice Discard Food"},
-        "quantity": "100",
-        "unit": "g",
-        "location": "FRIDGE",
-        "storedOn": "2026-07-21",
-        "expirySource": "USER_OVERRIDE",
-    })
+    alice.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "alice-discard-test",
+            "foodKey": "alice-discard-food",
+            "names": {"en": "Alice Discard Food"},
+            "quantity": "100",
+            "unit": "g",
+            "location": "FRIDGE",
+            "storedOn": "2026-07-21",
+            "expirySource": "USER_OVERRIDE",
+        },
+    )
 
     alice_lots = alice.get("/api/inventory/lots?foodKey=alice-discard-food&location=FRIDGE").json()
     alice_lot_id = alice_lots["lots"][0]["lotId"]

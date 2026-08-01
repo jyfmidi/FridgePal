@@ -1,3 +1,4 @@
+import { apiFetch } from './client'
 export interface HistoryEvent {
   id: string
   eventType: 'CHECK_IN' | 'EDIT' | 'MOVE' | 'MANUAL_CONSUMPTION' | 'COOKING' | 'DISCARD' | 'REVERSAL'
@@ -15,14 +16,14 @@ export interface UndoResponse {
 }
 
 export async function fetchHistory(limit: number = 50): Promise<HistoryEvent[]> {
-  const response = await fetch(`/api/history?limit=${limit}`, { credentials: 'include' })
+  const response = await apiFetch(`/api/history?limit=${limit}`, { credentials: 'include' })
   if (!response.ok) throw new Error(`History fetch failed with status ${response.status}`)
   const body = await response.json() as { events: HistoryEvent[] }
   return body.events
 }
 
 export async function undoEvent(eventId: string, idempotencyKey: string): Promise<UndoResponse> {
-  const response = await fetch(`/api/history/${encodeURIComponent(eventId)}/undo`, {
+  const response = await apiFetch(`/api/history/${encodeURIComponent(eventId)}/undo`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',

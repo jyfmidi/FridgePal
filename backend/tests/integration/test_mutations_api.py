@@ -88,9 +88,7 @@ def post_check_in(
     )
 
 
-def test_check_in_converts_compatible_mass_and_volume_units(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_check_in_converts_compatible_mass_and_volume_units(tmp_path: Path, monkeypatch) -> None:
     client = make_client(tmp_path, monkeypatch)
     cases = (
         ("mass-to-g", "100", "g", "0.5", "kg", "600", "g"),
@@ -237,9 +235,7 @@ def test_patch_lot_corrects_unit_and_stored_date_in_one_audited_edit(
     engine = client.app.state.database_engine
     with Session(engine) as session:
         event = session.scalar(
-            select(ActivityEventRow).where(
-                ActivityEventRow.idempotency_key == "patch-unit-date-1"
-            )
+            select(ActivityEventRow).where(ActivityEventRow.idempotency_key == "patch-unit-date-1")
         )
         assert event is not None
         assert event.display_snapshot["changes"]["unit"] == {"from": "g", "to": "kg"}
@@ -256,9 +252,7 @@ def test_patch_lot_corrects_unit_and_stored_date_in_one_audited_edit(
     get_settings.cache_clear()
 
 
-def test_patch_base_unit_converts_every_lot_transactionally(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_patch_base_unit_converts_every_lot_transactionally(tmp_path: Path, monkeypatch) -> None:
     client = make_client(tmp_path, monkeypatch)
     first = check_in(client, "convert-lot-1", food="rice", quantity="500", unit="g")
     second = check_in(client, "convert-lot-2", food="rice", quantity="750", unit="g")
@@ -408,9 +402,7 @@ def test_cooking_preview_reports_shortfall_and_persists_nothing(
     assert kale_line["requested"] == "300"
     assert kale_line["allocated"] == "300"
     assert kale_line["shortfall"] == "0"
-    assert kale_line["allocations"] == [
-        {"lotId": lot_id, "quantity": "300", "lotQuantity": "300"}
-    ]
+    assert kale_line["allocations"] == [{"lotId": lot_id, "quantity": "300", "lotQuantity": "300"}]
     chickpeas_line = next(line for line in body["lines"] if line["foodKey"] == "chickpeas")
     assert chickpeas_line["allocated"] == "0"
     assert chickpeas_line["shortfall"] == "200"
@@ -424,21 +416,21 @@ def test_cooking_preview_reports_shortfall_and_persists_nothing(
     get_settings.cache_clear()
 
 
-def test_cooking_commit_is_atomic_stale_checked_and_idempotent(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_cooking_commit_is_atomic_stale_checked_and_idempotent(tmp_path: Path, monkeypatch) -> None:
     client = make_client(tmp_path, monkeypatch)
     # Use kale and chickpeas (not in demo seed) to avoid interference
     kale_lot = check_in(client, "commit-kale", food="kale", quantity="500")
     chickpeas_lot = check_in(client, "commit-chickpeas", food="chickpeas", unit="g", quantity="4")
 
     lines = [
-        {"foodKey": "kale", "allocations": [
-            {"lotId": kale_lot, "quantity": "200", "lotQuantity": "500"}
-        ]},
-        {"foodKey": "chickpeas", "allocations": [
-            {"lotId": chickpeas_lot, "quantity": "1", "lotQuantity": "4"}
-        ]},
+        {
+            "foodKey": "kale",
+            "allocations": [{"lotId": kale_lot, "quantity": "200", "lotQuantity": "500"}],
+        },
+        {
+            "foodKey": "chickpeas",
+            "allocations": [{"lotId": chickpeas_lot, "quantity": "1", "lotQuantity": "4"}],
+        },
     ]
 
     stale = client.post(
@@ -446,12 +438,14 @@ def test_cooking_commit_is_atomic_stale_checked_and_idempotent(
         json={
             "idempotencyKey": "commit-stale",
             "lines": [
-                {"foodKey": "kale", "allocations": [
-                    {"lotId": kale_lot, "quantity": "200", "lotQuantity": "500"}
-                ]},
-                {"foodKey": "chickpeas", "allocations": [
-                    {"lotId": chickpeas_lot, "quantity": "1", "lotQuantity": "3"}
-                ]},
+                {
+                    "foodKey": "kale",
+                    "allocations": [{"lotId": kale_lot, "quantity": "200", "lotQuantity": "500"}],
+                },
+                {
+                    "foodKey": "chickpeas",
+                    "allocations": [{"lotId": chickpeas_lot, "quantity": "1", "lotQuantity": "3"}],
+                },
             ],
         },
     )

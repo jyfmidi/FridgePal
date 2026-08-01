@@ -70,11 +70,18 @@ export const demoInventory: InventoryFood[] = [
 
 export interface FoodCatalogItem {
   foodKey: string
-  nameKey: string
+  /** Catalog i18n key; absent for server-only foods whose names come from `names`. */
+  nameKey?: string
   names: { en: string; 'zh-CN': string }
   defaultLocation: StorageLocation
   defaultQuantity: number
   defaultUnit: InventoryUnit
+  /** Curated Food Token key; defaults to `foodKey` when absent. */
+  visualKey?: string
+  /** Search keywords per locale (admin-managed); matched by Add Food typeahead. */
+  aliases?: Record<string, string[]>
+  /** Quick quantity chips shown in Add Food (admin-managed package presets). */
+  packagePresets?: { label: { en: string; 'zh-CN'?: string }; amount: number; unit: InventoryUnit }[]
   shelfLifeDays?: number
 }
 

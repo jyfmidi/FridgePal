@@ -427,9 +427,12 @@ onMounted(() => {
   place-items: center;
   align-content: center;
   gap: var(--space-3);
+  padding: var(--space-8) var(--space-5);
+  border-radius: var(--radius-card);
   text-align: center;
   color: var(--color-muted);
-  padding: var(--space-6);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .history-empty__mark {

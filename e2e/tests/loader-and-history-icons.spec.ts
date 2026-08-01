@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
+import { signInFreshUser } from '../helpers/auth'
 
 const emptyStorage = {
   useSoon: [],
@@ -77,6 +78,7 @@ function controlledStorageResponse(page: Page) {
 }
 
 test('initial hydration shows the looping Fridge Pal character', async ({ page }) => {
+  await signInFreshUser(page)
   const storage = controlledStorageResponse(page)
   await storage.install()
 
@@ -84,7 +86,7 @@ test('initial hydration shows the looping Fridge Pal character', async ({ page }
 
   const loader = page.getByRole('status').filter({ hasText: 'Loading Fridge Pal…' })
   await expect(loader).toBeVisible()
-  const character = loader.locator('[data-motion="wiggle-hop"]')
+  const character = loader.locator('.fridge-pal-loader__mark')
   await expect(character).toBeVisible()
   const mark = loader.locator('.fridge-pal-loader__mark')
   const label = loader.locator('.fridge-pal-loader__label')
@@ -103,6 +105,7 @@ test('initial hydration shows the looping Fridge Pal character', async ({ page }
 })
 
 test('reduced motion keeps the hydration status without animating the character', async ({ page }) => {
+  await signInFreshUser(page)
   await page.emulateMedia({ reducedMotion: 'reduce' })
   const storage = controlledStorageResponse(page)
   await storage.install()
@@ -111,7 +114,7 @@ test('reduced motion keeps the hydration status without animating the character'
 
   const loader = page.getByRole('status').filter({ hasText: 'Loading Fridge Pal…' })
   await expect(loader).toBeVisible()
-  const character = loader.locator('[data-motion="wiggle-hop"]')
+  const character = loader.locator('.fridge-pal-loader__mark')
   await expect(character).toBeVisible()
   await expect(character).toHaveCSS('animation-name', 'none')
 
@@ -121,6 +124,7 @@ test('reduced motion keeps the hydration status without animating the character'
 })
 
 test('History uses a clear stock-in icon and curated food identity', async ({ page }) => {
+  await signInFreshUser(page)
   await page.route('**/api/storage', (route) => route.fulfill({ json: emptyStorage }))
   await page.route('**/api/history?limit=*', (route) => route.fulfill({
     json: {
@@ -194,6 +198,7 @@ test('History uses a clear stock-in icon and curated food identity', async ({ pa
 })
 
 test('History prefers Simplified Chinese snapshot names for foods and cooking items', async ({ page }) => {
+  await signInFreshUser(page)
   await page.route('**/api/storage', (route) => route.fulfill({ json: emptyStorage }))
   await page.route('**/api/history?limit=*', (route) => route.fulfill({
     json: {
@@ -229,7 +234,7 @@ test('History prefers Simplified Chinese snapshot names for foods and cooking it
   }))
 
   await page.goto('/')
-  await page.locator('.locale-action').evaluate((button: HTMLButtonElement) => button.click())
+  await page.locator('.user-widget__locale').evaluate((button: HTMLButtonElement) => button.click())
   await page.getByRole('link', { name: '记录' }).click()
 
   const addedEntry = page.getByRole('listitem').filter({ hasText: '菠菜' })
@@ -239,6 +244,7 @@ test('History prefers Simplified Chinese snapshot names for foods and cooking it
 })
 
 test('Recipe Editor names an icon-only seasoning removal action', async ({ page }) => {
+  await signInFreshUser(page)
   await page.route('**/api/storage', (route) => route.fulfill({ json: emptyStorage }))
   await page.route('**/api/recipes/saved-seasoning', (route) => route.fulfill({
     json: {
@@ -267,6 +273,7 @@ test('Recipe Editor names an icon-only seasoning removal action', async ({ page 
 })
 
 test('new meal idea indicator belongs only to the History destination', async ({ page }) => {
+  await signInFreshUser(page)
   await initializeRescueSelection(page)
   await page.route('**/api/storage', (route) => route.fulfill({ json: rescueStorage }))
   await page.route('**/api/rescue/search', (route) => route.fulfill({ json: rescueSearchResult }))
@@ -284,6 +291,7 @@ test('new meal idea indicator belongs only to the History destination', async ({
 })
 
 test('quick Rescue search does not flash the compact loader', async ({ page }) => {
+  await signInFreshUser(page)
   await initializeRescueSelection(page)
   await page.route('**/api/storage', (route) => route.fulfill({ json: rescueStorage }))
   let releaseSearch!: () => void
@@ -307,6 +315,7 @@ test('quick Rescue search does not flash the compact loader', async ({ page }) =
 })
 
 test('slow Rescue search reveals then hides the reduced-motion compact loader', async ({ page }) => {
+  await signInFreshUser(page)
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await initializeRescueSelection(page)
   await page.route('**/api/storage', (route) => route.fulfill({ json: rescueStorage }))
@@ -324,7 +333,7 @@ test('slow Rescue search reveals then hides the reduced-motion compact loader', 
 
   const loader = page.getByRole('status').filter({ hasText: 'Searching for recipe ideas…' })
   await expect(loader).toBeVisible()
-  const character = loader.locator('[data-motion="wiggle-hop"]')
+  const character = loader.locator('.fridge-pal-loader__mark')
   await expect(character).toBeVisible()
   await expect(character).toHaveCSS('animation-name', 'none')
 

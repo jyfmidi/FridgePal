@@ -94,9 +94,7 @@ class TavilyRetrievalAdapter:
                 http_client.close()
 
         if response.status_code >= 400:
-            raise SourceUnavailableError(
-                f"search provider returned HTTP {response.status_code}"
-            )
+            raise SourceUnavailableError(f"search provider returned HTTP {response.status_code}")
         try:
             results = response.json().get("results", [])
         except ValueError as exc:

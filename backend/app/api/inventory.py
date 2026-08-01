@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy.orm import Session
 
+from app.application.admin.service import list_library
 from app.application.inventory.service import (
     CheckInCommand,
     CommitAllocation,
@@ -213,6 +214,14 @@ def build_inventory_router(session_provider, current_user) -> APIRouter:
         today: Annotated[date | None, Query()] = None,
     ) -> dict[str, list[dict[str, object]]]:
         return get_storage_overview(session, user.user_id, today or date.today())
+
+    @api.get("/library")
+    def food_library(
+        session: Annotated[Session, Depends(session_provider)],
+        _user: Annotated[UserContext, Depends(current_user)],
+    ) -> list[dict[str, object]]:
+        """Active Food Library served to every user (Add Food typeahead)."""
+        return list_library(session)
 
     @api.get("/inventory/lots")
     def lots(
