@@ -1,6 +1,48 @@
 # Fridge Pal delivery work
 
-## Current task: stabilize and commit the local worktree (2026-07-21)
+## Current task: preset food icon system and starter library (2026-08-01)
+
+### Goal
+Design a reproducible Food Token icon style for admin-managed preset foods, document generation prompts, and—after user approval—generate and integrate a coherent starter batch of common ingredient icons.
+
+### Phases
+1. [complete] Read canonical requirements, inspect the new admin preset-food flow, audit the existing Food Token icon system, and review recent changes.
+2. [complete] Clarify the desired production format and present 2–3 visual approaches with trade-offs and a recommendation.
+3. [completed] Reframe the catalog around familiar household cooking ingredients, present the proposed style system, prompt contract, practical starter list, asset naming, and integration design for user approval.
+4. [completed] Write and commit the approved design document, then create the detailed implementation plan.
+5. [complete] Generate the approved code-native icon batch, integrate it into the curated registry, and verify mobile/desktop/admin behavior.
+
+### Key questions
+1. [resolved] Production assets remain code-native Vue/SVG icons in the existing curated registry.
+2. [resolved] Use the recognition-first `Bold Pantry` semi-flat silhouette route.
+3. [reopened] The fixed 40-icon catalog is no longer the target. Separate fresh cooking ingredients from staples, condiments, and snacks, then size the first batch from an evidence-ranked master catalog.
+
+### Decisions made
+| Decision | Rationale |
+|---|---|
+| Preserve the brainstorming approval gate before generation or application-code changes. | A batch is expensive to regenerate and must first align with the existing UI, rendering size, and asset pipeline. |
+| Use built-in image generation if raster assets are approved. | This is the default project-safe image workflow and does not require credentials. |
+| Deliver production icons as Vue/SVG curated registry assets. | User selected option 1; this matches the current renderer, remains crisp from 24–76 px, and avoids database/base64 payload growth. |
+| Treat the earlier unified 40-icon catalog only as a superseded review baseline. | It mixed fresh cooking ingredients with staples, condiments, and snacks and underrepresented Chinese vegetables and fruit. Existing legacy keys must remain compatible, but they need not consume priority slots in the fresh-food starter batch. |
+| Use the recognition-first semi-flat silhouette route. | User selected visual route 1: transparent canvas, strong ingredient silhouette, 2–3 dominant fills, no enclosing badge, texture, gradient, or decorative scene. |
+| Do not turn catalog selection into a market-research exercise. | The user wants a practical set of familiar household ingredients, not a defensible retail-sales ranking. Public retailer signals may be background context only and must not drive or complicate the list. |
+| Use a fresh-cooking information architecture for this batch. | Vegetables, fruit, meat/eggs/aquatic foods, dairy/soy foods, and fresh aromatics are in scope. Rice, pasta, and bread are staples; olive oil is a condiment; nuts are snacks. Keep existing keys for backward compatibility rather than silently deleting stored user data. |
+| Implement the family as deterministic, data-driven SVG primitives rendered as Vue components. | The image-generation skill explicitly routes established repo-native vector systems away from bitmap generation. A typed SVG catalog keeps 72 registry keys consistent and avoids generated-raster tracing. |
+
+### Errors encountered
+| Error | Attempt | Resolution |
+|---|---:|---|
+| Default `npm` resolves to Homebrew Node 18 with a missing ICU 70 dynamic library. | 1 | Reuse the known working bundled/NVM Node runtime for local visual preview; do not reinstall project dependencies. |
+| Sandbox blocked Vite from binding `127.0.0.1:5173` with `EPERM`. | 1 | Re-ran the same local-only preview through the approved network boundary; Vite started successfully. |
+| Browser runtime rejected `networkidle` for the local preview. | 1 | Used its supported `load` state and then inspected the visible page. |
+| `/dev/tokens` remained behind the application boot loader because no local API was running. | 1 | Start an isolated temporary backend database on port 8000, reload, and inspect without touching the user's normal data. |
+| The first Playwright RED run could not bind Vite to `::1:5173` inside the sandbox (`EPERM`). | 1 | Re-ran the local-only browser contract through the approved network boundary. |
+| An initial planning-file patch had an invalid multi-file hunk. | 1 | Split the patch into properly delimited file hunks and reapplied it. |
+| The first focused vue-tsc command referenced a non-existent `tsconfig.app.json`. | 1 | The frontend uses `tsconfig.json`; corrected the implementation plan and reran successfully. |
+| The first catalog lint found an unused `polygon` import in `vegetables.ts`. | 1 | Removed the unused helper import; no production geometry changed. |
+| The first visual board exposed clipped or ambiguous mango, bean-sprout, and bitter-melon silhouettes. | 1 | Reworked those paths inside the shared 48×48 geometry contract and repeated the complete-board plus size-ramp review. |
+
+## Previous task: stabilize and commit the local worktree (2026-07-21)
 
 ### Goal
 Remove the date-dependent backend test failure, verify the complete dirty worktree, and commit the existing work in reviewable functional groups without losing user changes.

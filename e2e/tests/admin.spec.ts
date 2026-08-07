@@ -56,8 +56,8 @@ test('admin creates a preset food and it appears in Add Food', async ({ page }) 
   await page.getByLabel('Chinese name').fill('测试牛油果')
   await page.getByLabel('Base unit').selectOption('piece')
   await page.getByLabel('Recommended storage').selectOption('FRIDGE')
-  // Pick a curated icon (lemon) instead of Auto.
-  await page.getByRole('button', { name: 'Use icon lemon' }).click()
+  // Pick a newly expanded curated icon (apple) instead of Auto.
+  await page.getByRole('button', { name: 'Use icon apple' }).click()
   await page.getByRole('button', { name: 'Save food' }).click()
 
   // Back on the admin list, the new food is searchable.

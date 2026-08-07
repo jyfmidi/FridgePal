@@ -78,6 +78,7 @@ flowchart TD
 - The same asset key renders in Storage, Rescue, result belts, Recipe Editor, Recipes, and reconciliation.
 - Unknown foods use a deterministic colored surface and the first localized user-perceived grapheme.
 - Every icon-only instance has an accessible localized name.
+- Production construction rules, naming, the approved household catalog, and the reusable reference-generation prompt live in `docs/FOOD_TOKEN_ICON_GUIDE.md`.
 
 ### `UI-CMP-02` — Storage Tile
 

@@ -1,45 +1,39 @@
 import type { Component } from 'vue'
-import IconBroccoli from './IconBroccoli.vue'
-import IconCarrots from './IconCarrots.vue'
-import IconChickenBreast from './IconChickenBreast.vue'
-import IconEggs from './IconEggs.vue'
-import IconFrozenPeas from './IconFrozenPeas.vue'
-import IconGarlic from './IconGarlic.vue'
-import IconLemon from './IconLemon.vue'
-import IconMilk from './IconMilk.vue'
-import IconMushrooms from './IconMushrooms.vue'
-import IconOnion from './IconOnion.vue'
-import IconPasta from './IconPasta.vue'
-import IconRice from './IconRice.vue'
-import IconSpinach from './IconSpinach.vue'
-import IconTofu from './IconTofu.vue'
-import IconTomatoes from './IconTomatoes.vue'
-import IconYogurt from './IconYogurt.vue'
+import { chilledIconDefinitions } from './catalog/chilled'
+import { fruitIconDefinitions } from './catalog/fruits'
+import { legacyIconDefinitions } from './catalog/legacy'
+import { proteinIconDefinitions } from './catalog/proteins'
+import type { FoodIconDefinitionMap } from './catalog/types'
+import { vegetableIconDefinitions } from './catalog/vegetables'
+import { createFoodIcon } from './createFoodIcon'
 
 /**
  * Food Token icon registry (UI-CMP-01).
  *
- * One coherent family: 48x48 viewBox, semi-flat full color, bold silhouette,
- * 2-3 fills per asset, shared top-left light with a bottom-right shade.
- * Fill-based (never outline-only) so tokens stay legible on light tiles
- * and on the neutral selection tray. Registry is keyed and statically imported,
- * so bundlers can tree-shake unused icons.
+ * One coherent Bold Pantry family: 48x48 viewBox, semi-flat full color,
+ * bold silhouette, two or three dominant fills, and shared top-left light.
+ * The 70 approved household foods are accompanied by compatibility-only
+ * rice and pasta keys so existing FoodDefinition rows keep rendering.
  */
-export const foodIcons: Record<string, Component> = {
-  'chicken-breast': IconChickenBreast,
-  spinach: IconSpinach,
-  mushrooms: IconMushrooms,
-  broccoli: IconBroccoli,
-  tofu: IconTofu,
-  yogurt: IconYogurt,
-  lemon: IconLemon,
-  eggs: IconEggs,
-  milk: IconMilk,
-  carrots: IconCarrots,
-  tomatoes: IconTomatoes,
-  onion: IconOnion,
-  garlic: IconGarlic,
-  rice: IconRice,
-  pasta: IconPasta,
-  'frozen-peas': IconFrozenPeas,
+const definitions = {
+  ...vegetableIconDefinitions,
+  ...fruitIconDefinitions,
+  ...proteinIconDefinitions,
+  ...chilledIconDefinitions,
+  ...legacyIconDefinitions,
+} satisfies FoodIconDefinitionMap
+
+const EXPECTED_ICON_COUNT = 72
+const entries = Object.entries(definitions)
+
+if (import.meta.env.DEV && entries.length !== EXPECTED_ICON_COUNT) {
+  throw new Error(`Food Token registry expected ${EXPECTED_ICON_COUNT} keys, received ${entries.length}`)
 }
+
+function componentName(key: string): string {
+  return `Icon${key.split('-').map((part) => `${part[0]?.toUpperCase() ?? ''}${part.slice(1)}`).join('')}`
+}
+
+export const foodIcons: Record<string, Component> = Object.fromEntries(
+  entries.map(([key, definition]) => [key, createFoodIcon(componentName(key), definition)]),
+)

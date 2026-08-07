@@ -1,5 +1,46 @@
 # Progress
 
+## 2026-08-01 (preset food icon system)
+
+- Started discovery for the new admin-managed preset-food icon workflow.
+- Loaded the required brainstorming, image-generation, and file-based planning instructions.
+- Confirmed the initial worktree is clean and the latest commit owns the new admin Food Library console.
+- Created the current task phases and recorded the first constraints; no application code or image assets have been changed yet.
+- Read the four canonical documents completely in the required authority order.
+- Captured the Food Token production constraints and the admin custom-icon size/security contract in `findings.md`.
+- Audited the latest admin commit and traced Food Token use across its major rendering surfaces.
+- Inspected the existing Vue/SVG registry, demo catalog, dev token showcase, and all three visual boards; recorded the current 16-food baseline and style anatomy.
+- The first local Vite preview attempt hit the repository's already-known broken Homebrew Node 18/ICU link; logged it and switched to the working workspace Node path instead of changing dependencies.
+- Started Vite successfully with the bundled Node runtime after approving the local-only bind. The first browser view confirmed that `/dev/tokens` is gated by normal app boot and therefore also needs an isolated local API before its content renders.
+- Started an isolated temporary SQLite-backed API, inspected the actual `/dev/tokens` size ramp and the Chinese admin “新增食材” icon picker, then cleanly stopped both local servers. No normal application data was touched.
+- Completed project discovery. The next design decision is the production asset format; generation and application-code changes remain paused until that direction is approved.
+- User selected production option 1: code-native Vue/SVG curated icons. Recorded the decision; the remaining scope question is whether to refine the existing 16 while expanding the library.
+- User selected full unification: 16 current icons plus 24 new staples, 40 total. Scope clarification is complete; visual-route comparison is next.
+- User approved visual route 1 (`Bold Pantry`). Approach comparison is complete; incremental design approval now moves to the exact 40-key catalog.
+- Began an official-source audit against the Chinese Dietary Guidelines (2022). Initial finding: the proposed catalog needs stronger whole-grain, mixed-bean, soybean, and nut representation before it should be approved.
+- Completed the first official-source pass. The guide supplies five food groups plus examples—not a fixed import list—and supports replacing three lower-priority draft icons with sweet potato, mixed beans, and nuts.
+- Reopened the first-batch count at the user's request. The 40-icon catalog is now a review baseline, not an approved final scope; next is a complete inventory and vegetable-gap review.
+- User rejected the dietary-group-driven additions and clarified the product taxonomy: mixed beans are too generic; olive oil is a condiment; nuts are snacks; rice, pasta, and bread are staples; fruit coverage is insufficient.
+- Audited public Hema and Xiaoxiang material for item-level popularity evidence. Confirmed that no public stable nationwide SKU leaderboard is available; recorded local/seasonal sales examples and Hema category-growth signals without treating them as national ranks.
+- Added the Ministry of Agriculture and Rural Affairs' nationally monitored 28-vegetable and 6-fruit baskets as the core demand proxy. The next design review will use this evidence to present a fresh-cooking master catalog and a priority first batch.
+- User corrected the emphasis: stop market research and simply assemble a useful set of common concrete ingredients. Refocused the catalog on an uncomplicated household list with stronger Chinese vegetable and fruit coverage.
+- User approved the 70-food scope and requested generation.
+- Read the image-generation, brainstorming, planning, implementation-plan, TDD, review, and verification instructions. Based on the established Vue/SVG system, selected direct code-native SVG generation rather than a raster generation/tracing detour.
+- Wrote and committed the approved design as `4955f3d docs: define common food icon library`.
+- Inspected the current 16-key registry, development showcase, admin picker, e2e harness, and demo seed. Confirmed the icon expansion can remain frontend-only and must not silently seed inventory or mutate user FoodDefinition rows.
+- Created the detailed TDD implementation plan at `docs/plans/2026-08-01-common-food-icon-library.md`; implementation will proceed locally in this task because no subagent workflow was requested.
+- Added the RED browser contracts. The showcase contract failed with 16 cells versus the required 72; the admin contract timed out exactly while waiting for the absent `Use icon apple` option. Both failures demonstrate the missing catalog rather than a test setup error.
+- Added the typed SVG primitive, palette, and Vue component-factory foundation. Focused ESLint and corrected vue-tsc checks pass; the catalog remains intentionally RED until category definitions are registered.
+- Implemented 38 vegetable/fungi/aromatic, 18 fruit, 10 protein/aquatic, 4 soy/chilled, and 2 compatibility SVG definitions and registered all 72 keys through Vue components.
+- GREEN confirmed: the desktop showcase contract renders 72 curated SVG cells, and the focused admin flow can select `apple`, save a preset, find it in Add Food, and clean it up. Focused icon lint and full frontend typecheck pass.
+- Expanded the development size ramp to cover leafy, pale, fruit, meat, aquatic, and chilled silhouettes. Added the reusable production/reference prompt guide and linked it from the canonical UX contract.
+- Fresh frontend verification passes after documentation/showcase integration: ESLint, vue-tsc, and Vite production build (164 modules).
+- Generated deterministic Playwright visual baselines for the complete 72-key registry on both white and neutral tray backgrounds and inspected both at original resolution.
+- Added and inspected a 24/32/48/64 px visual baseline. Applied targeted silhouette fixes for bitter melon, bean sprouts, and mango, then re-inspected the complete 72-key board.
+- Saved the reviewed complete-board preview at `docs/visuals/food-token-library.png` and removed the temporary platform-specific Playwright snapshots.
+- Removed the 16 superseded one-off Vue icon components after confirming the registry has no remaining imports; the category catalog is now the single geometry source.
+- Final verification passes: frontend ESLint, vue-tsc, Vite production build (164 modules), `git diff --check`, and all 38 Playwright mobile/desktop tests.
+
 ## 2026-07-21 (commit readiness)
 
 - Audited branch `codex/animated-loader-icons`: six loader/icon commits plus 34 unstaged paths; no staged changes.
