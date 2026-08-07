@@ -22,6 +22,15 @@ Use this authority order when details conflict:
 - Preserve stable requirement IDs in tests, issues, commits, and implementation notes.
 - Update the canonical document that owns a changed contract; do not create another competing plan.
 
+## Commit History
+
+- Prefer one outcome-oriented commit per user-recognizable feature or fix. Include its tests, documentation, and review-driven corrections in that commit.
+- Use searchable messages in the form `type(scope): specific outcome`, with the product concept or feature name in the subject.
+- Write commit subjects and bodies in Chinese unless the user explicitly requests another language; retain the conventional `type(scope)` prefix for tooling and filtering.
+- Do not leave separate design, plan, test-only, hardening, review-fix, or documentation commits for one feature unless they are independently useful deliverables.
+- Subtask commits are temporary implementation checkpoints. Squash them into the owning feature or fix before merging to `main`.
+- Do not rewrite commits that have already been pushed or shared without explicit user approval.
+
 ## Non-Negotiable Product Invariants
 
 - The product name is **Fridge Pal**.
