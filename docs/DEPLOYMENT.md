@@ -93,7 +93,7 @@ Review these settings:
 | `SEARCH_BASE_URL` | Search API base URL, default `https://api.tavily.com`. |
 | `APP_TIMEZONE` | User-observable calendar timezone, for example `Asia/Shanghai`. |
 | `APP_DEFAULT_LOCALE` | Initial locale, `en` or `zh-CN`. |
-| `SEED_DEMO_DATA` | Keep `true` for the current MVP demo inventory; set `false` for an empty installation. |
+| `SEED_DEMO_DATA` | Keep `true` for the current MVP demo inventory; set `false` for empty user inventory. The shared 70-food bilingual preset library is version-seeded on startup in either mode and never creates user inventory. |
 | `FRIDGE_PAL_JWT_SECRET` | (none) | JWT signing secret. Required. Must be at least 32 characters. Generate with `openssl rand -hex 32`. |
 | `FRIDGE_PAL_DEMO_PASSWORD` | (none) | Password for the built-in `demo` account. Required. |
 | `FRIDGE_PAL_ADMIN_USERNAME` | `admin` | Fixed administrator login for the admin console (Food Library and app settings). Required. |

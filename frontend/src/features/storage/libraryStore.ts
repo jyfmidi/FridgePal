@@ -15,6 +15,7 @@ let sharedLoad: Promise<void> | null = null
 
 function toCatalogItem(food: LibraryFood): FoodCatalogItem {
   const rule = food.shelfLife.find((item) => item.storageLocation === food.recommendedStorage)
+  const firstPreset = food.packagePresets[0]
   return {
     foodKey: food.foodKey,
     // Foods without a static twin get their names at runtime (i18n merge) and
@@ -22,8 +23,8 @@ function toCatalogItem(food: LibraryFood): FoodCatalogItem {
     nameKey: undefined,
     names: { en: food.names.en, 'zh-CN': food.names['zh-CN'] ?? food.names.en },
     defaultLocation: food.recommendedStorage.toLowerCase() as StorageLocation,
-    defaultQuantity: 1,
-    defaultUnit: food.baseUnit as InventoryUnit,
+    defaultQuantity: firstPreset ? Number(firstPreset.amount) : 1,
+    defaultUnit: (firstPreset?.unit ?? food.baseUnit) as InventoryUnit,
     visualKey: food.visualKey,
     aliases: food.aliases,
     packagePresets: food.packagePresets.map((preset) => ({

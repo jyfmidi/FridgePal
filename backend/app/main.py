@@ -28,6 +28,7 @@ from app.infrastructure.db.demo_seed import (
     normalize_legacy_inventory_units,
     seed_demo_inventory_for_user,
 )
+from app.infrastructure.db.food_library_seed import seed_food_library
 from app.infrastructure.db.session import create_database, session_dependency
 from app.infrastructure.recipe.factory import build_recipe_adapters
 
@@ -63,6 +64,7 @@ def create_app() -> FastAPI:
         )
     engine, session_factory = create_database(settings.database_url)
     normalize_legacy_inventory_units(session_factory)
+    seed_food_library(session_factory)
 
     # Create the built-in demo account and seed its data (only when demo seeding
     # is enabled; registered users inherit the same gate via seed_on_register).

@@ -101,3 +101,11 @@ def test_seed_demo_data_false_skips_demo_user_and_register_seed(monkeypatch):
     body = r.json()
     assert body["inventory"] == []
     assert body["useSoon"] == []
+
+    # Shared presets are independent of demo users and demo inventory.
+    r = c.get("/api/library")
+    assert r.status_code == 200
+    library = r.json()
+    assert len(library) == 70
+    assert {"bok-choy", "dragon-fruit", "lamb"} <= {food["foodKey"] for food in library}
+    assert {"rice", "pasta"}.isdisjoint(food["foodKey"] for food in library)

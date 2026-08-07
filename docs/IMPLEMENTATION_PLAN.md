@@ -72,8 +72,6 @@ frontend/
     features/             # storage, rescue, recipes, history
     i18n/                 # English and Simplified Chinese resources
     api/                  # typed client for the application service
-data/
-  food-library.json       # importable bilingual seed fixture
 e2e/                      # Playwright browser tests
 compose.yaml
 Dockerfile
@@ -155,7 +153,8 @@ Domain code must not import UI, HTTP, database, or provider packages. In the per
 - Create: `src/infrastructure/db/schema/*`
 - Create: `src/infrastructure/db/migrations/*`
 - Create: `src/infrastructure/db/repositories/*`
-- Create: `data/food-library.json`
+- Create: `src/infrastructure/db/food_library_catalog.py`
+- Create: `src/infrastructure/db/food_library_seed.py`
 - Test: `tests/integration/db/*`
 
 **Steps:**
@@ -163,9 +162,9 @@ Domain code must not import UI, HTTP, database, or provider packages. In the per
 1. Write repository contract tests for every entity in Domain Contracts.
 2. Create migrations for FoodDefinition, ShelfLifeRule, InventoryLot, RescueSession, recipe entities, CookingSession, InventoryTransaction, and ActivityEvent.
 3. Add constraints for enums, uniqueness, non-negative quantity, immutable transaction identity, and idempotency keys.
-4. Seed the seven-food demo fixture plus common Fridge/Freezer/Pantry staples with English and Chinese names.
+4. Seed the approved bilingual 70-food fresh-food catalog through a versioned, non-destructive startup operation independent of demo inventory. Preserve Admin-managed fields and inactive records. Keep `rice` and `pasta` as inactive compatibility definitions only when the 16-lot demo fixture requires them.
 5. Implement repositories and transaction boundary helper.
-6. Test fresh migration, seed idempotency, restart persistence, and ActivityEvent snapshots.
+6. Test fresh migration, seed idempotency, restart persistence, Admin-edit preservation, zero inventory mutation when demo data is disabled, and ActivityEvent snapshots.
 7. Test compensating transaction storage without deleting the original record.
 
 **Exit criteria:** A fresh database migrates/seeds, repositories satisfy contracts, and restart preserves records.

@@ -90,6 +90,53 @@ def test_admin_endpoints_require_authentication():
     assert r.status_code == 401
 
 
+def test_admin_list_exposes_complete_seeded_food_metadata():
+    c = _client()
+    _login_admin(c)
+
+    r = c.get("/api/admin/foods")
+    assert r.status_code == 200
+    foods = r.json()
+    assert len(foods) == 72
+    assert sum(food["active"] for food in foods) == 70
+    assert all(
+        not next(food for food in foods if food["foodKey"] == compatibility_key)["active"]
+        for compatibility_key in ("rice", "pasta")
+    )
+
+    bok_choy = next(food for food in foods if food["foodKey"] == "bok-choy")
+    assert bok_choy["names"] == {"en": "Bok choy", "zh-CN": "上海青"}
+    assert bok_choy["category"] == "vegetable"
+    assert bok_choy["aliases"] == {
+        "en": ["pak choi"],
+        "zh-CN": ["青菜", "小油菜"],
+    }
+    assert bok_choy["packagePresets"] == [
+        {
+            "label": {"en": "Regular amount", "zh-CN": "常用份量"},
+            "amount": "300",
+            "unit": "g",
+        },
+        {
+            "label": {"en": "Large amount", "zh-CN": "大份"},
+            "amount": "500",
+            "unit": "g",
+        },
+    ]
+    assert bok_choy["visualKey"] == "bok-choy"
+    assert bok_choy["recommendedStorage"] == "FRIDGE"
+    assert bok_choy["shelfLife"] == [
+        {
+            "storageLocation": "FRIDGE",
+            "durationDays": 3,
+            "sourceNote": (
+                "Fridge Pal conservative editable starter estimate; inspect freshness and "
+                "adjust in Admin."
+            ),
+        }
+    ]
+
+
 def test_create_update_and_soft_delete_food():
     c = _client()
     _login_admin(c)
@@ -288,10 +335,10 @@ def test_icon_upload_stores_sanitized_svg_and_serves_it_via_library():
     # object) must be stripped down to safe drawing content.
     evil = (
         b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">'
-        b'<script>alert(1)</script>'
+        b"<script>alert(1)</script>"
         b'<rect width="48" height="48" fill="#285f43" onclick="alert(2)"/>'
         b'<path d="M5 30 L24 8 L43 30 Z" fill="url(https://evil.example/x.png)"/>'
-        b'<foreignObject><div>text</div></foreignObject>'
+        b"<foreignObject><div>text</div></foreignObject>"
         b'<circle cx="24" cy="24" r="10" fill="none" stroke="#fff" stroke-width="3"/>'
         b"</svg>"
     )
