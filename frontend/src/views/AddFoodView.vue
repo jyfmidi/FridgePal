@@ -173,6 +173,9 @@ async function save() {
     storedOn: storedOn.value,
     expiresOn: expiresOn.value || undefined,
   })
+  if (custom && synced) {
+    await hydrateLibrary(true)
+  }
   await router.push({ path: '/', query: synced ? {} : { sync: 'local' } })
 }
 </script>

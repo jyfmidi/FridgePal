@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   fetchCurrentUser,
   login as apiLogin,
@@ -6,10 +6,18 @@ import {
   register as apiRegister,
 } from '../../api/auth'
 import type { AuthUser } from '../../api/auth'
+import { resetFoodLibrary } from '../storage/libraryStore'
 
 const currentUser = ref<AuthUser | null>(null)
 /** Shared in-flight init so concurrent callers (router guard, App mount) await the same fetch. */
 let initPromise: Promise<void> | null = null
+
+// Authentication can also be cleared by the shared 401 handler in App.vue,
+// so reset by observed identity rather than duplicating calls at each setter.
+watch(
+  () => currentUser.value?.username ?? null,
+  () => resetFoodLibrary(),
+)
 
 export function useAuth() {
   const isAuthenticated = computed(() => currentUser.value !== null)

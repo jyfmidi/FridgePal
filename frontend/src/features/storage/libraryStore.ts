@@ -12,6 +12,19 @@ import { foodCatalog, type FoodCatalogItem, type InventoryUnit, type StorageLoca
 const serverFoods = ref<LibraryFood[]>([])
 let loaded = false
 let sharedLoad: Promise<void> | null = null
+let generation = 0
+
+/**
+ * Discards the authenticated Food Library response without touching the
+ * built-in catalog. A previously started request may still settle, but its
+ * generation is no longer allowed to repopulate this user-scoped cache.
+ */
+export function resetFoodLibrary(): void {
+  generation += 1
+  serverFoods.value = []
+  loaded = false
+  sharedLoad = null
+}
 
 function toCatalogItem(food: LibraryFood): FoodCatalogItem {
   const rule = food.shelfLife.find((item) => item.storageLocation === food.recommendedStorage)
@@ -40,8 +53,10 @@ export function useFoodLibrary() {
   async function hydrateLibrary(force = false): Promise<void> {
     if (loaded && !force) return
     if (!sharedLoad) {
+      const requestGeneration = generation
       sharedLoad = fetchFoodLibrary()
         .then((foods) => {
+          if (generation !== requestGeneration) return
           serverFoods.value = foods
           for (const food of foods) {
             registerVisualKey(food.foodKey, food.visualKey)
@@ -51,10 +66,12 @@ export function useFoodLibrary() {
           }
         })
         .catch(() => {
+          if (generation !== requestGeneration) return
           // Library is a progressive enhancement; Add Food falls back to the
           // built-in catalog when the server is unreachable.
         })
         .finally(() => {
+          if (generation !== requestGeneration) return
           sharedLoad = null
           loaded = true
         })

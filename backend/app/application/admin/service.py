@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.domain.errors import DomainError
@@ -192,19 +192,35 @@ def _rules_for(session: Session, food_id: str) -> list[ShelfLifeRuleRow]:
     )
 
 
+def _public_food_definition(session: Session, food_id: str) -> FoodDefinitionRow:
+    """Resolve an Admin-manageable public food without exposing personal rows."""
+    food = session.get(FoodDefinitionRow, food_id)
+    if food is None or food.owner_user_id is not None:
+        raise AdminError("Food definition not found.", code="ADMIN_FOOD_NOT_FOUND")
+    return food
+
+
 def list_food_definitions(session: Session) -> list[dict[str, object]]:
-    """All food definitions including inactive ones, with their shelf-life rules."""
+    """All public definitions including inactive ones, with their shelf-life rules."""
     foods = session.scalars(
-        select(FoodDefinitionRow).order_by(FoodDefinitionRow.active.desc(), FoodDefinitionRow.id)
+        select(FoodDefinitionRow)
+        .where(FoodDefinitionRow.owner_user_id.is_(None))
+        .order_by(FoodDefinitionRow.active.desc(), FoodDefinitionRow.id)
     ).all()
     return [_food_payload(food, _rules_for(session, food.id)) for food in foods]
 
 
-def list_library(session: Session) -> list[dict[str, object]]:
-    """Active food definitions exposed to every user (Food Library typeahead)."""
+def list_library(session: Session, user_id: str) -> list[dict[str, object]]:
+    """Active public definitions plus the current user's personal definitions."""
     foods = session.scalars(
         select(FoodDefinitionRow)
-        .where(FoodDefinitionRow.active.is_(True))
+        .where(
+            FoodDefinitionRow.active.is_(True),
+            or_(
+                FoodDefinitionRow.owner_user_id.is_(None),
+                FoodDefinitionRow.owner_user_id == user_id,
+            ),
+        )
         .order_by(FoodDefinitionRow.id)
     ).all()
     return [_food_payload(food, _rules_for(session, food.id)) for food in foods]
@@ -234,6 +250,7 @@ def create_food_definition(session: Session, data: FoodDefinitionInput) -> dict[
         recommended_storage=data.recommended_storage,
         origin="USER_CREATED",
         active=data.active,
+        owner_user_id=None,
     )
     session.add(food)
     session.flush()
@@ -278,9 +295,7 @@ def _change_base_unit(session: Session, food: FoodDefinitionRow, new_unit: str) 
 def update_food_definition(
     session: Session, food_id: str, data: FoodDefinitionInput
 ) -> dict[str, object]:
-    food = session.get(FoodDefinitionRow, food_id)
-    if food is None:
-        raise AdminError("Food definition not found.", code="ADMIN_FOOD_NOT_FOUND")
+    food = _public_food_definition(session, food_id)
     if data.food_key is not None and data.food_key != food.id:
         # Lots, events, recipes, and rescue sessions reference the canonical key;
         # renaming would orphan them, so the key is immutable after creation.
@@ -328,9 +343,7 @@ def update_food_definition(
 
 def soft_delete_food_definition(session: Session, food_id: str) -> None:
     """Deactivate a food; historical lots and events remain valid (DE-01 active flag)."""
-    food = session.get(FoodDefinitionRow, food_id)
-    if food is None:
-        raise AdminError("Food definition not found.", code="ADMIN_FOOD_NOT_FOUND")
+    food = _public_food_definition(session, food_id)
     food.active = False
     session.commit()
 
@@ -364,9 +377,7 @@ def update_app_settings(session: Session, use_soon_window_days: int) -> dict[str
 
 def set_food_icon(session: Session, food_id: str, data_uri: str) -> dict[str, object]:
     """Persist a validated custom icon (data URI) on a food definition."""
-    food = session.get(FoodDefinitionRow, food_id)
-    if food is None:
-        raise AdminError("Food definition not found.", code="ADMIN_FOOD_NOT_FOUND")
+    food = _public_food_definition(session, food_id)
     food.custom_icon = data_uri
     session.commit()
     return _food_payload(food, _rules_for(session, food.id))
@@ -374,9 +385,7 @@ def set_food_icon(session: Session, food_id: str, data_uri: str) -> dict[str, ob
 
 def clear_food_icon(session: Session, food_id: str) -> dict[str, object]:
     """Remove a custom icon so the food falls back to its visual key."""
-    food = session.get(FoodDefinitionRow, food_id)
-    if food is None:
-        raise AdminError("Food definition not found.", code="ADMIN_FOOD_NOT_FOUND")
+    food = _public_food_definition(session, food_id)
     food.custom_icon = None
     session.commit()
     return _food_payload(food, _rules_for(session, food.id))

@@ -415,3 +415,42 @@ def test_icon_upload_requires_admin_and_existing_food():
     r = _upload_icon(c, "missing-food", b"<svg></svg>", "icon.svg", "image/svg+xml")
     assert r.status_code == 404
     assert r.json()["detail"] == "ADMIN_FOOD_NOT_FOUND"
+
+
+def test_admin_cannot_list_or_mutate_a_personal_food_definition():
+    c = _client()
+    _register_user(c, "personal-owner")
+    created = c.post(
+        "/api/inventory/check-in",
+        json={
+            "idempotencyKey": "personal-admin-isolation",
+            "foodKey": "custom:personal-admin-food",
+            "names": {"en": "Personal Admin Food", "zh-CN": "个人管理食材"},
+            "quantity": "1",
+            "unit": "piece",
+            "location": "FRIDGE",
+            "storedOn": "2026-08-07",
+            "expirySource": "NONE",
+        },
+    )
+    assert created.status_code == 201
+    personal_food_key = next(
+        item["foodKey"]
+        for item in c.get("/api/storage").json()["inventory"]
+        if item["names"]["en"] == "Personal Admin Food"
+    )
+
+    _login_admin(c)
+    foods = c.get("/api/admin/foods").json()
+    assert all(
+        food["foodKey"] != personal_food_key and food["names"]["en"] != "Personal Admin Food"
+        for food in foods
+    )
+
+    update = c.patch(f"/api/admin/foods/{personal_food_key}", json=_food_payload())
+    delete = c.delete(f"/api/admin/foods/{personal_food_key}")
+    upload = _upload_icon(c, personal_food_key, b"<svg></svg>", "icon.svg", "image/svg+xml")
+    remove = c.delete(f"/api/admin/foods/{personal_food_key}/icon")
+    for response in (update, delete, upload, remove):
+        assert response.status_code == 404
+        assert response.json()["detail"] == "ADMIN_FOOD_NOT_FOUND"

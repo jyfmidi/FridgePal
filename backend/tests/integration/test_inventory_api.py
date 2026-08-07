@@ -62,19 +62,18 @@ def test_check_in_is_idempotent_and_storage_aggregates_lots(
     storage = client.get("/api/storage?today=2026-07-18")
     assert storage.status_code == 200
     # Filter to only kale items to avoid demo data interference
-    kale_items = [i for i in storage.json()["inventory"] if i["foodKey"] == "kale"]
-    assert kale_items == [
-        {
-            "foodKey": "kale",
-            "names": {"en": "Kale", "zh-CN": "羽衣甘蓝"},
-            "visualKey": "kale",
-            "customIcon": None,
-            "quantity": "350",
-            "unit": "g",
-            "location": "FRIDGE",
-            "urgency": "TODAY",
-        }
-    ]
+    kale_items = [i for i in storage.json()["inventory"] if i["visualKey"] == "kale"]
+    assert len(kale_items) == 1
+    assert kale_items[0]["foodKey"] != "kale"
+    assert {key: value for key, value in kale_items[0].items() if key != "foodKey"} == {
+        "names": {"en": "Kale", "zh-CN": "羽衣甘蓝"},
+        "visualKey": "kale",
+        "customIcon": None,
+        "quantity": "350",
+        "unit": "g",
+        "location": "FRIDGE",
+        "urgency": "TODAY",
+    }
     get_settings.cache_clear()
 
 

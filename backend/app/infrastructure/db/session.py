@@ -28,6 +28,9 @@ def _ensure_columns(engine: Engine) -> None:
                 "origin": "VARCHAR(20) DEFAULT 'SEEDED'",
                 "active": "BOOLEAN DEFAULT 1",
                 "custom_icon": "TEXT",
+                # Existing food definitions stay public (NULL) because legacy
+                # rows do not record a trustworthy owner.
+                "owner_user_id": "VARCHAR(36)",
             },
         ),
     )
@@ -41,6 +44,20 @@ def _ensure_columns(engine: Engine) -> None:
             for name, definition in columns.items():
                 if name not in existing:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}"))
+
+    if "food_definitions" in existing_tables:
+        owner_index = "ix_food_definitions_owner_user_id"
+        existing_indexes = {
+            index["name"] for index in inspect(engine).get_indexes("food_definitions")
+        }
+        if owner_index not in existing_indexes:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "CREATE INDEX ix_food_definitions_owner_user_id "
+                        "ON food_definitions (owner_user_id)"
+                    )
+                )
 
 
 def create_database(database_url: str) -> tuple[Engine, sessionmaker[Session]]:

@@ -64,6 +64,7 @@ Do not use floating-point arithmetic for persisted quantities or money-like deci
 | `recommended_storage` | One StorageLocation. |
 | `origin` | Seeded or user-created. |
 | `active` | Soft availability flag; referenced historical records remain valid. |
+| `owner_user_id` | Nullable owning User reference. `NULL` is a shared public preset; a non-`NULL` value is visible and reusable only by that user. `active` never grants visibility. |
 
 ### `DE-02` — ShelfLifeRule
 
@@ -395,6 +396,7 @@ Every asynchronous surface defines loading, empty, partial, stale, disabled, err
 ## 11. Security and Privacy
 
 - The application supports username/password authentication with per-user data isolation. User-owned data (inventory, rescue sessions, recipes, history) is isolated by `user_id`. Every repository query filters by `user_id`. Cross-user access returns 404.
+- Food definitions are public only when `owner_user_id` is `NULL`. A personal definition is visible only to its owner; inaccessible or inactive definition references return not-found behavior without disclosing whether they exist. Admin Food Library operations are limited to public definitions.
 - The application refuses to start when `FRIDGE_PAL_JWT_SECRET` or `FRIDGE_PAL_DEMO_PASSWORD` is missing or invalid. JWT HS256 tokens carry `iss`/`aud` claims and expire after 24 hours; sessions live in HttpOnly, SameSite=Strict cookies.
 - Auth endpoints return stable machine-readable error codes in `detail`: `AUTH_USERNAME_TAKEN` (409), `AUTH_INVALID_CREDENTIALS` (401), `AUTH_RATE_LIMITED` (429), `AUTH_NOT_AUTHENTICATED` / `AUTH_INVALID_SESSION` (401), and `AUTH_USERNAME_INVALID` / `AUTH_PASSWORD_TOO_SHORT` / `AUTH_PASSWORD_TOO_LONG` (422). Clients map codes to localized copy; they never render raw FastAPI validation arrays.
 - Login and registration are rate-limited per client address (`AUTH_LOGIN_RATE_PER_MINUTE`, `AUTH_REGISTER_RATE_PER_MINUTE`; `0` disables). Login timing is equalized for unknown usernames to prevent enumeration through response time.

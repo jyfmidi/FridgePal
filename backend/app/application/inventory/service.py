@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from uuid import uuid4
+from uuid import UUID, uuid4, uuid5
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -22,6 +22,31 @@ from app.infrastructure.db.models import (
 
 class LotNotFoundError(Exception):
     """Raised when a lot-targeting operation references an unknown lot."""
+
+
+class FoodDefinitionNotFoundError(Exception):
+    """Raised when a check-in definition is inactive or not visible to the user."""
+
+
+PERSONAL_FOOD_NAMESPACE = UUID("a2e5c3d0-6bf4-4c6c-90e4-58e4b5bbfa88")
+
+
+def _personal_food_id(user_id: str, client_food_key: str) -> str:
+    """Return the stable persisted ID for one user's client custom-food key."""
+    return str(uuid5(PERSONAL_FOOD_NAMESPACE, f"{user_id}:{client_food_key}"))
+
+
+def _visible_food(
+    session: Session, user_id: str, client_food_key: str
+) -> FoodDefinitionRow | None:
+    """Resolve a public or user-owned food from its API-facing key."""
+    food = session.get(FoodDefinitionRow, client_food_key)
+    if food is not None:
+        return food if food.owner_user_id in (None, user_id) else None
+    food = session.get(FoodDefinitionRow, _personal_food_id(user_id, client_food_key))
+    if food is not None and food.owner_user_id == user_id:
+        return food
+    return None
 
 
 @dataclass(frozen=True)
@@ -62,12 +87,18 @@ def check_in_food(session: Session, user_id: str, command: CheckInCommand) -> Ch
             raise RuntimeError("idempotent lot is missing its ActivityEvent")
         return CheckInResult(replay.id, event.id, True)
 
+    # A client can submit either a known persisted definition ID or its local
+    # temporary key. Looking up the supplied key first preserves public legacy
+    # ``custom:*`` rows and permits reuse of a persisted personal UUID.
     food = session.get(FoodDefinitionRow, command.food_key)
+    if food is None:
+        food = session.get(FoodDefinitionRow, _personal_food_id(user_id, command.food_key))
     stored_quantity = command.quantity
     stored_unit = command.unit
     if food is None:
         food = FoodDefinitionRow(
-            id=command.food_key,
+            id=_personal_food_id(user_id, command.food_key),
+            owner_user_id=user_id,
             names=command.names,
             visual_key=command.food_key,
             base_unit=command.unit,
@@ -79,6 +110,10 @@ def check_in_food(session: Session, user_id: str, command: CheckInCommand) -> Ch
         # Persist the parent explicitly so strict databases never flush a child first.
         session.flush()
     else:
+        if not food.active or (
+            food.owner_user_id is not None and food.owner_user_id != user_id
+        ):
+            raise FoodDefinitionNotFoundError("FOOD_DEFINITION_NOT_FOUND")
         converted = convert(Quantity(command.quantity, command.unit), food.base_unit)
         stored_quantity = converted.value
         stored_unit = food.base_unit
@@ -196,11 +231,13 @@ def get_storage_overview(
 def _active_lots(
     session: Session, user_id: str, food_key: str, location: str | None
 ) -> list[InventoryLotRow]:
+    food = _visible_food(session, user_id, food_key)
+    persisted_food_key = food.id if food is not None else food_key
     statement = (
         select(InventoryLotRow)
         .where(
             InventoryLotRow.user_id == user_id,
-            InventoryLotRow.food_definition_id == food_key,
+            InventoryLotRow.food_definition_id == persisted_food_key,
             InventoryLotRow.status == InventoryLotStatus.ACTIVE.value,
         )
         .order_by(
@@ -248,12 +285,14 @@ def _find_replay_event(
 def list_lots(
     session: Session, user_id: str, food_key: str, location: str
 ) -> dict[str, list[dict[str, object]]]:
+    food = _visible_food(session, user_id, food_key)
+    persisted_food_key = food.id if food is not None else food_key
     rows = session.execute(
         select(InventoryLotRow, FoodDefinitionRow.base_unit)
         .join(FoodDefinitionRow, FoodDefinitionRow.id == InventoryLotRow.food_definition_id)
         .where(
             InventoryLotRow.user_id == user_id,
-            InventoryLotRow.food_definition_id == food_key,
+            InventoryLotRow.food_definition_id == persisted_food_key,
             InventoryLotRow.storage_location == location,
             InventoryLotRow.status != InventoryLotStatus.DISCARDED.value,
         )
@@ -409,7 +448,8 @@ def reduce_inventory(session: Session, user_id: str, command: ReduceCommand) -> 
             replayed=True,
         )
 
-    food = session.get(FoodDefinitionRow, command.food_key)
+    food = _visible_food(session, user_id, command.food_key)
+    persisted_food_key = food.id if food is not None else command.food_key
     amount = command.amount
     unit = command.unit
     if food is not None:
@@ -418,7 +458,7 @@ def reduce_inventory(session: Session, user_id: str, command: ReduceCommand) -> 
         unit = food.base_unit
 
     lots = _active_lots(session, user_id, command.food_key, command.location)
-    plan = allocate({command.food_key: amount}, _allocation_lots(lots))
+    plan = allocate({persisted_food_key: amount}, _allocation_lots(lots))
     if plan.shortfalls:
         raise ValueError("insufficient quantity")
 
@@ -447,7 +487,7 @@ def reduce_inventory(session: Session, user_id: str, command: ReduceCommand) -> 
     event = ActivityEventRow(
         id=str(uuid4()),
         event_type=InventoryReason.MANUAL_CONSUMPTION.value,
-        food_definition_id=command.food_key,
+        food_definition_id=persisted_food_key,
         quantity_delta=-amount,
         display_snapshot={
             "names": food.names if food is not None else {"en": command.food_key},
@@ -535,13 +575,14 @@ def cooking_preview(
     lines: list[dict[str, object]] = []
     feasible = True
     for item in items:
-        food = session.get(FoodDefinitionRow, item.food_key)
+        food = _visible_food(session, user_id, item.food_key)
+        persisted_food_key = food.id if food is not None else item.food_key
         requested_amount = item.amount
         if food is not None:
             requested_amount = convert(Quantity(item.amount, item.unit), food.base_unit).value
         lots = _active_lots(session, user_id, item.food_key, location)
-        plan = allocate({item.food_key: requested_amount}, _allocation_lots(lots))
-        shortfall = plan.shortfalls.get(item.food_key, Decimal(0))
+        plan = allocate({persisted_food_key: requested_amount}, _allocation_lots(lots))
+        shortfall = plan.shortfalls.get(persisted_food_key, Decimal(0))
         if shortfall > 0:
             feasible = False
         lot_by_id = {lot.id: lot for lot in lots}
@@ -604,6 +645,8 @@ def cooking_commit(
     totals_by_food: dict[str, Decimal] = {}
     units_by_food: dict[str, str] = {}
     for line in command.lines:
+        food = _visible_food(session, user_id, line.food_key)
+        persisted_food_key = food.id if food is not None else line.food_key
         for allocation in line.allocations:
             lot = session.scalar(
                 select(InventoryLotRow).where(
@@ -611,7 +654,7 @@ def cooking_commit(
                     InventoryLotRow.user_id == user_id,
                 )
             )
-            if lot is None or lot.food_definition_id != line.food_key:
+            if lot is None or lot.food_definition_id != persisted_food_key:
                 raise ValueError(f"unknown lot in commit: {allocation.lot_id}")
             if (
                 lot.status != InventoryLotStatus.ACTIVE.value
@@ -624,7 +667,6 @@ def cooking_commit(
                 totals_by_food.get(line.food_key, Decimal(0)) + allocation.quantity
             )
             if line.food_key not in units_by_food:
-                food = session.get(FoodDefinitionRow, line.food_key)
                 units_by_food[line.food_key] = food.base_unit if food is not None else ""
 
     transactions: list[InventoryTransactionRow] = []
@@ -645,11 +687,11 @@ def cooking_commit(
             )
         )
 
-    first_food = session.get(FoodDefinitionRow, command.lines[0].food_key)
+    first_food = _visible_food(session, user_id, command.lines[0].food_key)
     event = ActivityEventRow(
         id=str(uuid4()),
         event_type=InventoryReason.COOKING.value,
-        food_definition_id=command.lines[0].food_key,
+        food_definition_id=first_food.id if first_food is not None else command.lines[0].food_key,
         quantity_delta=-sum(totals_by_food.values(), Decimal(0)),
         display_snapshot={
             "sessionId": cooking_session_id,

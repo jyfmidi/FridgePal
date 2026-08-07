@@ -59,7 +59,9 @@ def storage_quantity(client: TestClient, food: str, location: str) -> str | None
     storage = client.get("/api/storage?today=2026-07-18")
     assert storage.status_code == 200
     for item in storage.json()["inventory"]:
-        if item["foodKey"] == food and item["location"] == location:
+        if (
+            item["foodKey"] == food or item["visualKey"] == food
+        ) and item["location"] == location:
             return item["quantity"]
     return None
 
@@ -116,7 +118,7 @@ def test_check_in_converts_compatible_mass_and_volume_units(tmp_path: Path, monk
 
         assert response.status_code == 201, response.text
         storage = client.get("/api/storage?today=2026-07-18").json()["inventory"]
-        item = next(row for row in storage if row["foodKey"] == food)
+        item = next(row for row in storage if row["visualKey"] == food)
         assert item["quantity"] == total
         assert item["unit"] == base_unit
     get_settings.cache_clear()

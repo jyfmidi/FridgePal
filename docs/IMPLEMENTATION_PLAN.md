@@ -161,7 +161,7 @@ Domain code must not import UI, HTTP, database, or provider packages. In the per
 
 1. Write repository contract tests for every entity in Domain Contracts.
 2. Create migrations for FoodDefinition, ShelfLifeRule, InventoryLot, RescueSession, recipe entities, CookingSession, InventoryTransaction, and ActivityEvent.
-3. Add constraints for enums, uniqueness, non-negative quantity, immutable transaction identity, and idempotency keys.
+3. Add constraints for enums, uniqueness, non-negative quantity, immutable transaction identity, idempotency keys, and nullable indexed FoodDefinition ownership (`NULL` for public presets, `user_id` for personal foods).
 4. Seed the approved bilingual 70-food fresh-food catalog through a versioned, non-destructive startup operation independent of demo inventory. Preserve Admin-managed fields and inactive records. Keep `rice` and `pasta` as inactive compatibility definitions only when the 16-lot demo fixture requires them.
 5. Implement repositories and transaction boundary helper.
 6. Test fresh migration, seed idempotency, restart persistence, Admin-edit preservation, zero inventory mutation when demo data is disabled, and ActivityEvent snapshots.
@@ -182,8 +182,8 @@ Domain code must not import UI, HTTP, database, or provider packages. In the per
 
 **Steps:**
 
-1. Write failing integration tests for locale-aware library typeahead and custom-food creation.
-2. Implement search over canonical names and aliases.
+1. Write failing integration tests for locale-aware library typeahead, owner-scoped custom-food creation, same-name isolation, and cross-user not-found behavior.
+2. Implement search over canonical names and aliases, returning public presets plus only the authenticated user's personal foods.
 3. Write failing tests for check-in defaults, override source, invalid date/quantity, and idempotent duplicate submit.
 4. Implement atomic check-in plus History event.
 5. Write failing tests for Storage aggregation, Use Soon duplication by view, and most-urgent-lot surface state.

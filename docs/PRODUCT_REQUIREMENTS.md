@@ -83,7 +83,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 |---|---:|---|
 | `FR-LIB-001` | P0 | Seed common foods with localized names, aliases, category, Food Token key, natural base unit, package presets, recommended storage, and storage-specific shelf-life defaults. |
 | `FR-LIB-002` | P0 | Add Food begins with typeahead search and recent/common suggestions; photo recognition is not the primary path. |
-| `FR-LIB-003` | P0 | If no match exists, create a minimal custom food with localized name, base unit, storage default, and optional shelf-life rule. |
+| `FR-LIB-003` | P0 | If no match exists, create a minimal custom food with localized name, base unit, storage default, and optional shelf-life rule. Custom foods are private to their creator; shared presets have no owner. |
 | `FR-LIB-004` | P0 | A food without curated art receives a deterministic colored monogram based on its first user-perceived localized grapheme. |
 | `FR-INV-001` | P0 | Selecting a food pre-fills its recommended storage, natural unit, package/quantity presets, `stored_on = today`, and a suggested expiration date. |
 | `FR-INV-002` | P0 | Suggested expiration equals `stored_on + ShelfLifeRule.duration_days`; the user can override it with one-tap relative options or a date picker. |
@@ -169,7 +169,7 @@ Never expose the obsolete terms `Combination`, `Query Capsule`, `Twin Diff`, or 
 | `FR-ADM-002` | P0 | Admin-only endpoints reject non-admin users with the stable `ADMIN_REQUIRED` code; the client never exposes admin navigation to regular users. |
 | `FR-ADM-003` | P0 | The admin can create, edit, and soft-delete Food Library entries: bilingual names, aliases, category, visual key (curated icon, automatic monogram, or an uploaded SVG/PNG custom icon), canonical base unit, package presets, recommended storage, per-location shelf-life rules, and the active flag. Soft deletion keeps historical lots and events valid. |
 | `FR-ADM-004` | P0 | Changing a food's base unit converts every existing lot transactionally when the units are same-dimension (`g↔kg`, `ml↔l`, `piece`); cross-dimension changes are rejected while lots exist. The food key is immutable after creation. |
-| `FR-ADM-005` | P0 | The active Food Library is served to every user; Add Food merges it with the built-in catalog so admin-managed presets appear in the typeahead. |
+| `FR-ADM-005` | P0 | The active Food Library serves shared presets plus the authenticated user's own custom foods. Add Food merges it with the built-in catalog; Admin manages public presets only and cannot read or operate personal foods. |
 | `FR-ADM-006` | P0 | The admin can read and write application settings (for example the Use Soon attention window) through a persisted settings store; values survive restart and take effect without code changes. |
 | `FR-ADM-007` | P0 | The admin console keeps mobile/desktop parity, English/Simplified Chinese support, and the accessibility baseline of the rest of the application. |
 | `FR-ADM-008` | P0 | Admin library and settings mutations never touch user-owned inventory, recipes, or history. |

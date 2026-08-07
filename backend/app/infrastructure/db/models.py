@@ -39,6 +39,11 @@ class FoodDefinitionRow(Base):
     __tablename__ = "food_definitions"
 
     id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    # NULL denotes a shared preset; a non-NULL owner makes a definition private
+    # to that user. Fresh schemas enforce the owning-user reference.
+    owner_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
     names: Mapped[dict[str, str]] = mapped_column(JSON)
     aliases: Mapped[dict[str, list[str]]] = mapped_column(JSON, default=dict)
     category: Mapped[str] = mapped_column(String(50), default="other")

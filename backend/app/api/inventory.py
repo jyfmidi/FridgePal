@@ -15,6 +15,7 @@ from app.application.inventory.service import (
     CommitLine,
     CookingCommitCommand,
     EditLotCommand,
+    FoodDefinitionNotFoundError,
     LotNotFoundError,
     PreviewItem,
     ReduceCommand,
@@ -196,6 +197,9 @@ def build_inventory_router(session_provider, current_user) -> APIRouter:
                     expiry_source=payload.expiry_source.value,
                 ),
             )
+        except FoodDefinitionNotFoundError as error:
+            session.rollback()
+            raise HTTPException(status_code=404, detail=str(error)) from error
         except (ValueError, DomainError) as error:
             session.rollback()
             raise HTTPException(status_code=409, detail=str(error)) from error
@@ -218,10 +222,10 @@ def build_inventory_router(session_provider, current_user) -> APIRouter:
     @api.get("/library")
     def food_library(
         session: Annotated[Session, Depends(session_provider)],
-        _user: Annotated[UserContext, Depends(current_user)],
+        user: Annotated[UserContext, Depends(current_user)],
     ) -> list[dict[str, object]]:
         """Active Food Library served to every user (Add Food typeahead)."""
-        return list_library(session)
+        return list_library(session, user.user_id)
 
     @api.get("/inventory/lots")
     def lots(
